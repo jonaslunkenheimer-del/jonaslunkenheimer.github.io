@@ -19,10 +19,7 @@ jobs:
         env:
           SB_SERVICE_KEY: ${{ secrets.SB_SERVICE_KEY }}
         run: |
-          # Replace placeholder with actual secret
-          sed -i "s|%%SB_SERVICE_KEY%%|${SB_SERVICE_KEY}|g" brettspiel-planer.html
-          # Copy as index.html for GitHub Pages
-          cp brettspiel-planer.html index.html
+          sed -i "s|%%SB_SERVICE_KEY%%|${SB_SERVICE_KEY}|g" index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
