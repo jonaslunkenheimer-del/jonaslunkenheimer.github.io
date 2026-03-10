@@ -1522,6 +1522,7 @@ function renderTermine(){
   const el=document.getElementById('termine-list');
   if(!state.termine.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🎲</div><p>Noch keine Termine!</p></div>`;return}
   const visibleTermine = state.termine.filter(t =>
+    _isAdmin ||                               // Admin sieht alles
     !t.privat ||                              // öffentlich: alle sehen
     t.creator === currentName ||              // Ersteller sieht immer
     (t.personen && t.personen.includes(currentName)) // Eingeladene sehen
@@ -1669,7 +1670,7 @@ function renderKalender(){
   // Build termine map by date string YYYY-MM-DD
   const tMap={};
   const kalenderTermine = state.termine.filter(t =>
-    !t.privat || t.creator===currentName || (t.personen&&t.personen.includes(currentName))
+    _isAdmin || !t.privat || t.creator===currentName || (t.personen&&t.personen.includes(currentName))
   );
   kalenderTermine.forEach(t=>{
     if(!t.date)return;
