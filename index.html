@@ -284,7 +284,6 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
         <button class="tab" onclick="showTab('kalender',this)">Kalender</button>
         <button class="tab" onclick="showTab('ergebnisse',this)">Ergebnisse</button>
       </div>
-      <button id="admin-btn" onclick="openAdminModal()" style="display:none;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:.75rem;font-weight:600;cursor:pointer;color:var(--gold)">👑 Admin</button>
       <div class="user-pill" onclick="openProfileModal()" style="cursor:pointer" title="Profil bearbeiten">
         <div class="av av-lg" id="hdr-av"></div>
         <span class="user-pill-name" id="hdr-name"></span>
@@ -475,6 +474,31 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
   </div>
 </div>
 
+<!-- BGG TOKEN MODAL -->
+<div id="bgg-token-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:910;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:28px;width:100%;max-width:460px;animation:up .18s ease">
+    <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px">🎲 BGG API Token</div>
+    <div style="font-size:.82rem;color:var(--text-2);margin-bottom:18px;line-height:1.6">
+      BoardGameGeek erfordert seit Juli 2025 einen offiziellen Token für die API.<br>
+      Beantrage ihn kostenlos unter <a href="https://boardgamegeek.com/applications" target="_blank" style="color:var(--blue)">boardgamegeek.com/applications</a> (Non-commercial Lizenz, dauert ~1 Woche).
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.8rem;margin-bottom:18px;line-height:1.7">
+      <strong>Schritte:</strong><br>
+      1. Auf BGG einloggen → <a href="https://boardgamegeek.com/applications" target="_blank" style="color:var(--blue)">Applications</a> → „Create Application"<br>
+      2. Name: <em>Die Meeples</em> · Typ: <strong>Non-commercial</strong><br>
+      3. Nach Genehmigung: „Tokens" → Token generieren → hier eintragen
+    </div>
+    <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:600">BGG Bearer Token</label>
+    <input class="input-field" id="bgg-token-input" type="password" placeholder="e3f8c3ff-9926-4efc-863c-3b92acda4d32" style="margin-bottom:8px;font-family:'DM Mono',monospace">
+    <div id="bgg-token-error" style="display:none;color:var(--red);font-size:.8rem;margin-bottom:10px"></div>
+    <div id="bgg-token-saved" style="display:none;color:var(--green);font-size:.8rem;margin-bottom:10px">✓ Token gespeichert!</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeBggTokenModal()">Schließen</button>
+      <button class="btn btn-blue" onclick="saveBggToken()">💾 Token speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN PANEL -->
 <div id="admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:920;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:28px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;animation:up .18s ease">
@@ -635,9 +659,7 @@ async function startApp(name){
   document.getElementById('new-creator').value=name;
   setAv(document.getElementById('hdr-av'),name);
   document.getElementById('hdr-name').textContent=name;
-  // Show admin button if admin
-  const adminBtn = document.getElementById('admin-btn');
-  if(adminBtn) adminBtn.style.display = _isAdmin ? 'flex' : 'none';
+
   try{await loadState();}catch(e){console.warn('loadState error:',e);}
   renderTermine();
   startPolling();
@@ -661,148 +683,12 @@ async function switchUser(){
 }
 
 // ── Admin: User Management ──
-// ── Service Key ──
-function saveServiceKey(){
-  const val = document.getElementById('service-key-input').value.trim();
-  const statusEl = document.getElementById('service-key-status');
-  if(!val){ statusEl.textContent='Bitte einen Key eingeben.'; return; }
-  localStorage.setItem(SB_SERVICE_KEY_STORAGE, val);
-  statusEl.textContent='✓ Key gespeichert!';
-  statusEl.style.color='var(--green)';
-  setTimeout(()=>{ loadAdminUsers(); }, 300);
-}
-
-
-function openAdminModal(){
-  if(!_isAdmin){notify('Kein Zugriff.');return;}
-  document.getElementById('admin-modal').style.display='flex';
-  document.getElementById('admin-create-error').style.display='none';
-  document.getElementById('admin-create-ok').style.display='none';
-  // Show current service key status
-  const keyBox   = document.getElementById('service-key-box');
-  const inp      = document.getElementById('service-key-input');
-  const statusEl = document.getElementById('service-key-status');
-  const builtIn  = SB_SERVICE_KEY_BUILT && !SB_SERVICE_KEY_BUILT.startsWith('%%');
-  if(builtIn){
-    // Key was injected via GitHub Actions – hide the input box
-    keyBox.style.display = 'none';
-  } else {
-    keyBox.style.display = 'block';
-    const saved = localStorage.getItem(SB_SERVICE_KEY_STORAGE) || '';
-    if(saved){
-      inp.value = saved;
-      statusEl.textContent = '✓ Key manuell gespeichert';
-      statusEl.style.color = 'var(--green)';
-    } else {
-      statusEl.textContent = '⚠️ Noch kein Key – bitte eintragen oder GitHub Actions einrichten.';
-      statusEl.style.color = 'var(--gold)';
-    }
-  }
-  loadAdminUsers();
-}
-function closeAdminModal(){document.getElementById('admin-modal').style.display='none';}
-
-function genPassword(){
-  const chars='abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$';
-  const pw=Array.from({length:12},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
-  document.getElementById('admin-new-pw').value=pw;
-  document.getElementById('admin-new-pw').type='text';
-  setTimeout(()=>{document.getElementById('admin-new-pw').type='password';},3000);
-}
-
-async function adminCreateUser(){
-  const name  = document.getElementById('admin-new-name').value.trim();
-  const email = document.getElementById('admin-new-email').value.trim();
-  const pw    = document.getElementById('admin-new-pw').value;
-  const errEl = document.getElementById('admin-create-error');
-  const okEl  = document.getElementById('admin-create-ok');
-  errEl.style.display='none'; okEl.style.display='none';
-  if(!name||!pw){errEl.textContent='Bitte alle Felder ausfüllen.';errEl.style.display='block';return;}
-  if(pw.length<6){errEl.textContent='Passwort muss mindestens 6 Zeichen haben.';errEl.style.display='block';return;}
-  // Generate internal fake email from username
-  const fakeEmail = name.toLowerCase().replace(/\s+/g,'.')+('@diemeeples.intern');
-  try{
-    const r = await fetch(SB_URL+'/auth/v1/admin/users',{
-      method:'POST',
-      headers:adminHeaders(),
-      body:JSON.stringify({email:fakeEmail,password:pw,email_confirm:true,user_metadata:{display_name:name}})
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error(data.message||data.msg||JSON.stringify(data));
-    const pwDisplay = document.getElementById('admin-new-pw').value;
-    okEl.innerHTML = `✓ Account erstellt!<br><strong>${escHtml(name)}</strong><br>Passwort: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace">${escHtml(pwDisplay)}</code>`;
-    okEl.style.display='block';
-    document.getElementById('admin-new-name').value='';
-    document.getElementById('admin-new-email').value='';
-    document.getElementById('admin-new-pw').value='';
-    loadAdminUsers();
-  }catch(e){
-    errEl.textContent='Fehler: '+e.message;
-    errEl.style.display='block';
-  }
-}
-
-async function loadAdminUsers(){
-  const listEl = document.getElementById('admin-user-list');
-  listEl.innerHTML='<div style="color:var(--text-3);font-size:.82rem">Lade...</div>';
-  try{
-    const r = await fetch(SB_URL+'/auth/v1/admin/users?per_page=50',{
-      headers:adminHeaders()
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error(data.message||'Fehler beim Laden');
-    const users = data.users||[];
-    if(!users.length){listEl.innerHTML='<div style="color:var(--text-3);font-size:.82rem">Keine Accounts gefunden.</div>';return;}
-    listEl.innerHTML = users.map(u=>{
-      const name = u.user_metadata?.display_name||u.email?.split('@')[0]||'?';
-      const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('de-DE') : 'noch nie';
-      return `<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
-        <div class="av av-md" style="background:${nameColor(name)}">${nameInit(name)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.85rem">${escHtml(name)}</div>
-          <div style="font-size:.72rem;color:var(--text-3);font-family:'DM Mono',monospace">${escHtml(u.email||'')} · Zuletzt: ${last}</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" style="font-size:.7rem;color:var(--red)" onclick="adminDeleteUser('${u.id}','${escHtml(name)}')">Löschen</button>
-      </div>`;
-    }).join('');
-  }catch(e){
-    listEl.innerHTML='<div style="color:var(--red);font-size:.82rem">Fehler: '+escHtml(e.message)+'</div>';
-  }
-}
-
-async function adminDeleteUser(uid, name){
-  if(!confirm(name+' wirklich löschen?')) return;
-  try{
-    const r = await fetch(SB_URL+'/auth/v1/admin/users/'+uid,{
-      method:'DELETE',
-      headers:adminHeaders()
-    });
-    if(!r.ok) throw new Error('Fehler '+r.status);
-    notify(name+' gelöscht.');
-    loadAdminUsers();
-  }catch(e){notify('Fehler: '+e.message);}
-}
-
 // ── Supabase Storage ──
 const SB_URL   = 'https://hsomxjwyzzgwxtjxvrts.supabase.co';
 const SB_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhzb214and5enpnd3h0anh2cnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMzQxMjAsImV4cCI6MjA4ODcxMDEyMH0.nFkr0yFoZLX1npisMNUDgZjJka99HJSeU7QH-G8QjQE';
 const SB_TABLE = 'spieleabend';
 const SB_ROW   = 1; // single-row store
-const SB_SERVICE_KEY_STORAGE = 'sb_service_key';
-// Injected at build time by GitHub Actions – falls back to localStorage if not set
-const SB_SERVICE_KEY_BUILT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhzb214and5enpnd3h0anh2cnRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzEzNDEyMCwiZXhwIjoyMDg4NzEwMTIwfQ.gXa4VrRPJc_qygeC9ii9QIL02JF8zqShdDeznY4JZjk';
 
-function getServiceKey(){
-  // Use build-time key if injected, otherwise fall back to manually saved key
-  if(SB_SERVICE_KEY_BUILT && !SB_SERVICE_KEY_BUILT.startsWith('%%')){
-    return SB_SERVICE_KEY_BUILT;
-  }
-  return localStorage.getItem(SB_SERVICE_KEY_STORAGE) || '';
-}
-function adminHeaders(){
-  const key = getServiceKey() || SB_ANON;
-  return {'Content-Type':'application/json','apikey':key,'Authorization':'Bearer '+key};
-}
 
 function sbHeaders(){
   const tok = _sbSession?.access_token || SB_ANON;
