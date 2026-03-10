@@ -916,7 +916,7 @@ function showTab(tab,btn){
   btn.classList.add('active');
   if(tab==='zusagen')renderZusagen();
   if(tab==='kalender')renderKalender();
-  if(tab==='markt')renderMarkt();
+  if(tab==='markt'){ if(!_isAdmin){ showTab('termine', document.querySelector('.tab')); return; } renderMarkt(); }
 }
 
 // ── Spielsuche via Claude API ──
@@ -1943,6 +1943,7 @@ async function toggleSold(id){
 
 // ── Render gallery ──
 async function renderMarkt(){
+  if(!_isAdmin) return;
   await loadMarkt();
   const el = document.getElementById('markt-list');
   if(!el) return;
