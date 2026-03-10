@@ -256,8 +256,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
     <div class="name-logo">🎲</div>
     <div class="name-title">Die Meeples</div>
     <div class="name-sub">Spieleabend Planer</div>
-    <label class="name-label" for="login-username">Benutzername</label>
-    <input class="name-input" id="login-username" placeholder="z.B. Max Mustermann" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    <label class="name-label" for="login-email">E-Mail</label>
+    <input class="name-input" id="login-email" type="email" placeholder="max@beispiel.de" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
     <label class="name-label" for="login-pw" style="margin-top:10px">Passwort</label>
     <input class="name-input" id="login-pw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     <div class="name-error" id="name-error" style="display:none"></div>
@@ -627,28 +627,14 @@ function sbAuthHeaders(extra){
   return {'Content-Type':'application/json','apikey':SB_ANON,'Authorization':'Bearer '+tok,...(extra||{})};
 }
 
-// Username → interne Fake-E-Mail
-function usernameToEmail(name){
-  return name.toLowerCase().replace(/[^a-z0-9]/g,'')||'user'+Date.now()+'@diemeeples.intern';
-}
-function emailToUsername(email){
-  // Stored in user_metadata.display_name
-  return email; // fallback only
-}
 async function doLogin(){
-  const username = document.getElementById('login-username').value.trim();
-  const pw       = document.getElementById('login-pw').value;
-  const errEl    = document.getElementById('name-error');
-  const btn      = document.getElementById('login-btn');
+  const email = document.getElementById('login-email').value.trim();
+  const pw    = document.getElementById('login-pw').value;
+  const errEl = document.getElementById('name-error');
+  const btn   = document.getElementById('login-btn');
   errEl.style.display='none';
-  if(!username||!pw){errEl.textContent='Bitte Benutzername und Passwort eingeben.';errEl.style.display='block';return;}
+  if(!email||!pw){errEl.textContent='Bitte E-Mail und Passwort eingeben.';errEl.style.display='block';return;}
   btn.textContent='Einloggen...';btn.disabled=true;
-  // Convert display name to internal email for Supabase Auth
-  // Admin can log in with real email directly
-  const isAdminLogin = username.includes('@');
-  const email = isAdminLogin
-    ? username
-    : username.trim().toLowerCase().replace(/\s+/g, '.') + '@diemeeples.intern';
   try{
     const r = await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
       method:'POST',
@@ -694,7 +680,7 @@ async function switchUser(){
   currentName='';_isAdmin=false;
   document.getElementById('app-screen').style.display='none';
   document.getElementById('name-screen').style.display='flex';
-  document.getElementById('login-username').value='';
+  document.getElementById('login-email').value='';
   document.getElementById('login-pw').value='';
   document.getElementById('name-error').style.display='none';
 }
@@ -1214,16 +1200,6 @@ async function saveProfileName(){
     const data = await r.json();
     // Update session with new metadata
     if(_sbSession) _sbSession.user = data;
-    // Also update the internal fake email so login still works with new name
-    const newFakeEmail = newName.trim().toLowerCase().replace(/\s+/g, '.') + '@diemeeples.intern';
-    const currentEmail = _sbSession?.user?.email || '';
-    if(!currentEmail.includes('@') || currentEmail.endsWith('@diemeeples.intern')){
-      await fetch(SB_URL+'/auth/v1/user',{
-        method:'PUT',
-        headers:{'Content-Type':'application/json','apikey':SB_ANON,'Authorization':'Bearer '+(_sbSession?.access_token||SB_ANON)},
-        body: JSON.stringify({email: newFakeEmail})
-      }).catch(()=>{}); // non-critical, ignore errors
-    }
     // Update current name everywhere
     const oldName = currentName;
     currentName = newName;
