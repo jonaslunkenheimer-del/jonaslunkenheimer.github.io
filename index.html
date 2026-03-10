@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Die Meeples</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6fb;--surface:#fff;--surface2:#f8f9fd;--border:#e4e8f0;--border-acc:#c7d4f0;
+  --blue:#3b6ef5;--blue-lt:#eef2fe;--blue-md:#d4dffb;
+  --green:#16a34a;--green-lt:#ecfdf5;--green-bd:#bbf7d0;
+  --red:#e03535;--red-lt:#fff0f0;--gold:#d97706;
+  --text:#111827;--text-2:#4b5563;--text-3:#9ca3af;
+  --radius:16px;--radius-sm:10px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow:0 4px 16px rgba(0,0,0,.07),0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.1),0 2px 8px rgba(0,0,0,.05);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:'Outfit',sans-serif;color:var(--text);min-height:100vh;line-height:1.5}
+
+/* ── NAME SCREEN ── */
+#name-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#eef2fe 0%,#f0fdf4 100%);padding:24px}
+.name-box{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:44px;width:100%;max-width:400px;box-shadow:var(--shadow-lg);animation:up .35s ease;text-align:center}
+.name-logo{width:64px;height:64px;border-radius:18px;background:var(--blue-lt);border:1px solid var(--blue-md);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 18px}
+.name-title{font-size:1.7rem;font-weight:800;margin-bottom:4px}
+.name-sub{font-size:.88rem;color:var(--text-3);margin-bottom:30px}
+.name-label{display:block;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:7px;text-align:left;font-weight:500}
+.name-input{width:100%;padding:13px 16px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:1rem;color:var(--text);outline:none;transition:border-color .18s,box-shadow .18s}
+.name-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,110,245,.1);background:var(--surface)}
+.name-error{font-size:.8rem;color:var(--red);margin-top:6px;text-align:left;display:none}
+.name-error.show{display:block}
+.btn-name{width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-weight:700;font-size:1rem;cursor:pointer;box-shadow:0 2px 8px rgba(59,110,245,.3);transition:all .16s;margin-top:16px}
+.btn-name:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.known-section{margin-top:22px}
+.known-divider{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.known-divider::before,.known-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.known-divider span{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text-3)}
+.known-list{display:flex;flex-direction:column;gap:7px}
+.known-chip{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:30px;cursor:pointer;transition:all .15s;font-weight:600;font-size:.88rem;text-align:left}
+.known-chip:hover{border-color:var(--blue);background:var(--blue-lt);color:var(--blue)}
+
+/* ── AVATAR ── */
+.av{display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:700;color:#fff;text-transform:uppercase;flex-shrink:0}
+.av-lg{width:34px;height:34px;font-size:.85rem}
+.av-md{width:26px;height:26px;font-size:.68rem}
+.av-sm{width:20px;height:20px;font-size:.54rem}
+
+/* ── APP ── */
+#app-screen{display:none}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 40px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:34px;height:34px;border-radius:10px;background:var(--blue-lt);border:1px solid var(--blue-md);display:flex;align-items:center;justify-content:center;font-size:1rem}
+.brand-name{font-size:1rem;font-weight:800;letter-spacing:-.01em}
+.brand-sub{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--text-3);letter-spacing:.1em;text-transform:uppercase}
+.user-pill{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;background:var(--surface2);border:1px solid var(--border);border-radius:30px;cursor:pointer;transition:all .15s}
+.user-pill:hover{border-color:var(--border-acc);background:var(--blue-lt)}
+.user-pill-name{font-size:.83rem;font-weight:600}
+.user-switch{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--blue);text-decoration:underline}
+
+/* ── TABS ── */
+.tab-bar{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px}
+.tab{padding:6px 18px;border:none;background:transparent;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:600;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;color:var(--text-3);transition:all .18s}
+.tab.active{background:var(--surface);color:var(--blue);box-shadow:var(--shadow-sm)}
+
+/* ── LAYOUT ── */
+.container{max-width:1080px;margin:0 auto;padding:36px 24px}
+.tab-content{display:none}
+.tab-content.active{display:block;animation:up .25s ease}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.section-lbl{font-family:'DM Mono',monospace;font-size:.62rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:28px;box-shadow:var(--shadow-sm)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.form-field label{display:block;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;font-weight:500}
+.input-field{width:100%;padding:9px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:.88rem;color:var(--text);outline:none;transition:border-color .18s,box-shadow .18s}
+.input-field::placeholder{color:var(--text-3)}
+.input-field:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,110,245,.1);background:var(--surface)}
+.btn{padding:9px 18px;border:none;border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-weight:600;font-size:.82rem;letter-spacing:.03em;cursor:pointer;transition:all .16s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.btn-blue{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(59,110,245,.25)}
+.btn-blue:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border-acc);color:var(--blue)}
+.btn-outline:hover{background:var(--blue-lt)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-2)}
+.btn-ghost:hover{border-color:var(--red);color:var(--red);background:var(--red-lt)}
+.btn-sm{padding:6px 13px;font-size:.78rem}
+.btn-icon{padding:6px 11px;font-size:.78rem}
+.input-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.divider{height:1px;background:var(--border);margin:20px 0}
+
+/* ── TOGGLE ── */
+.toggle-wrap{position:relative;display:inline-flex;cursor:pointer;flex-shrink:0}
+.toggle-wrap input{position:absolute;opacity:0;width:0;height:0}
+.toggle-track{width:44px;height:24px;background:var(--border);border-radius:12px;transition:background .2s;display:flex;align-items:center;padding:2px}
+.toggle-wrap input:checked+.toggle-track{background:var(--blue)}
+.toggle-thumb{width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+.toggle-wrap input:checked+.toggle-track .toggle-thumb{transform:translateX(20px)}
+
+/* ── COLLAPSIBLE TERMIN CARDS ── */
+.termin-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow-sm);overflow:hidden;transition:box-shadow .2s,border-color .2s}
+.termin-item:hover{box-shadow:var(--shadow);border-color:var(--border-acc)}
+.termin-item.open{box-shadow:var(--shadow);border-color:var(--border-acc)}
+.termin-header{display:flex;align-items:center;gap:14px;padding:18px 22px;cursor:pointer;user-select:none}
+.termin-header:hover{background:var(--surface2)}
+.termin-chevron{font-size:.75rem;color:var(--text-3);transition:transform .22s;flex-shrink:0;margin-left:auto}
+.termin-item.open .termin-chevron{transform:rotate(180deg)}
+.termin-summary{flex:1;min-width:0}
+.termin-title-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.termin-title{font-size:1rem;font-weight:700}
+.chips-row{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-family:'DM Mono',monospace;font-size:.65rem;padding:3px 9px;border-radius:6px;border:1px solid var(--border);color:var(--text-2);background:var(--surface2)}
+.chip-green{background:var(--green-lt);border-color:var(--green-bd);color:var(--green)}
+.termin-body{padding:0 22px 22px;border-top:1px solid var(--border);display:none}
+.termin-item.open .termin-body{display:block;animation:up .2s ease}
+
+/* persons */
+.lbl{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:9px;font-weight:500}
+.persons-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;min-height:26px;align-items:center}
+.person-chip{display:flex;align-items:center;gap:5px;background:var(--green-lt);border:1px solid var(--green-bd);color:var(--green);border-radius:20px;padding:3px 11px;font-size:.8rem;font-weight:600}
+.person-chip .rm{cursor:pointer;opacity:.5;transition:opacity .15s}
+.person-chip .rm:hover{opacity:1}
+
+/* spiele */
+.spiele-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.spiel-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;position:relative;transition:box-shadow .2s,border-color .2s,transform .2s}
+.spiel-card:hover{box-shadow:var(--shadow);border-color:var(--border-acc);transform:translateY(-2px)}
+.spiel-card.top-ranked{border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.2),var(--shadow);background:#fffdf5}
+.top-badge{position:absolute;top:8px;left:8px;z-index:2;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;font-family:'DM Mono',monospace;font-size:.56rem;font-weight:700;letter-spacing:.06em;padding:3px 7px;border-radius:5px;box-shadow:0 2px 6px rgba(245,158,11,.4);text-transform:uppercase}
+.vorschlag-chip{display:inline-flex;align-items:center;gap:4px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text-3);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:2px 7px;margin-top:5px}
+.spiel-img{width:100%;height:130px;object-fit:cover;display:block}
+.spiel-img-ph{width:100%;height:130px;background:linear-gradient(135deg,var(--blue-lt),var(--green-lt));display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-3)}
+.spiel-body{padding:10px 12px 12px}
+.spiel-badges{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.badge{font-family:'DM Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:5px;font-weight:500;letter-spacing:.04em}
+.badge-blue{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-md);text-decoration:none}
+.badge-green{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+.spiel-name{font-size:.88rem;font-weight:700;margin-bottom:4px;line-height:1.3}
+.spiel-meta{font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3);display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.spiel-rm{position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.9);border:1px solid var(--border);color:var(--text-3);font-size:.65rem;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .18s}
+.spiel-card:hover .spiel-rm{opacity:1}
+.spiel-rm:hover{color:var(--red);border-color:var(--red)}
+.voting-lbl{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;margin-top:8px}
+.stars{display:flex;gap:3px;margin-bottom:6px}
+.star{font-size:1.1rem;cursor:pointer;color:#d1d5db;transition:color .1s,transform .1s}
+.star:hover{color:#f59e0b;transform:scale(1.2)}
+.votes-row{display:flex;align-items:center;gap:7px;font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3)}
+.vote-bar-outer{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.vote-bar-inner{height:100%;background:linear-gradient(90deg,var(--blue),#7aa4f8);border-radius:2px;transition:width .4s}
+.voter-select{width:100%;margin-bottom:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:.85rem;color:var(--text);outline:none;cursor:pointer}
+
+/* autocomplete */
+.search-wrap{position:relative;flex:1;min-width:220px}
+.ac-dd{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--border-acc);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:999;max-height:320px;overflow-y:auto;display:none}
+.ac-dd.open{display:block;animation:up .15s ease}
+.ac-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.hi{background:var(--blue-lt)}
+.ac-thumb{width:40px;height:40px;border-radius:7px;object-fit:cover;flex-shrink:0}
+.ac-thumb-ph{width:40px;height:40px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.ac-name{font-size:.84rem;font-weight:600}
+.ac-sub{font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3);margin-top:1px}
+.ac-msg{padding:14px 16px;font-size:.82rem;color:var(--text-3);display:flex;align-items:center;gap:8px}
+
+/* mode badge */
+.mode-badge{display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:.6rem;border-radius:5px;padding:3px 8px}
+.add-tab{flex:1;padding:6px 10px;border:none;background:transparent;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:600;font-size:.76rem;letter-spacing:.03em;cursor:pointer;color:var(--text-3);transition:all .18s;white-space:nowrap}
+.add-tab-active{background:var(--surface);color:var(--blue);box-shadow:var(--shadow-sm)}
+.as-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
+.as-item:last-child{border-bottom:none}
+.as-item:hover,.as-item.hi{background:var(--blue-lt)}
+.as-thumb{width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--surface2)}
+.as-thumb-ph{width:42px;height:42px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.as-name{font-size:.85rem;font-weight:600}
+.as-sub{font-family:'DM Mono',monospace;font-size:.64rem;color:var(--text-3);margin-top:1px}
+
+/* ── CHAT ── */
+.chat-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 14px 10px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;scroll-behavior:smooth}
+.chat-empty{text-align:center;padding:16px 0;color:var(--text-3);font-size:.82rem;font-style:italic}
+.msg-row{display:flex;align-items:flex-end;gap:7px}
+.msg-row.mine{flex-direction:row-reverse}
+.bubble{max-width:72%;padding:8px 12px;border-radius:16px;font-size:.88rem;line-height:1.45;word-break:break-word}
+.msg-row:not(.mine) .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg-row.mine .bubble{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.bubble-name{font-size:.63rem;font-weight:700;margin-bottom:2px;opacity:.65}
+.bubble-time{font-family:'DM Mono',monospace;font-size:.56rem;margin-top:3px;opacity:.5;text-align:right}
+.msg-row.mine .bubble-time{color:rgba(255,255,255,.7)}
+.chat-input-row{display:flex;gap:8px;align-items:center}
+.chat-input{flex:1;padding:10px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:.88rem;color:var(--text);outline:none;transition:border-color .18s}
+.chat-input:focus{border-color:var(--blue)}
+.chat-send{width:38px;height:38px;border-radius:50%;background:var(--blue);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;transition:all .15s;box-shadow:0 2px 6px rgba(59,110,245,.3)}
+.chat-send:hover{filter:brightness(1.1);transform:scale(1.07)}
+
+/* ── ERGEBNISSE ── */
+.ergebnis-row{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border)}
+.ergebnis-row:last-child{border-bottom:none}
+.rank-num{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--text-3);width:22px;text-align:center;flex-shrink:0}
+.rank-num.gold{color:var(--gold);font-weight:700}
+.rank-num.silver{color:#94a3b8;font-weight:700}
+.rank-num.bronze{color:#c07a4a;font-weight:700}
+.ergebnis-img{width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.ergebnis-img-ph{width:42px;height:42px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.ergebnis-name{font-size:.9rem;font-weight:700;flex:1}
+.score-tag{font-family:'DM Mono',monospace;font-size:.72rem;font-weight:500;padding:4px 11px;border-radius:6px;white-space:nowrap}
+.score-tag.active{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-md)}
+.score-tag.dim{background:var(--surface2);color:var(--text-3);border:1px solid var(--border)}
+
+/* ── CALENDAR ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.cal-month{font-size:1.15rem;font-weight:700}
+.cal-nav-btn{width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .15s}
+.cal-nav-btn:hover{border-color:var(--blue);background:var(--blue-lt);color:var(--blue)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow{text-align:center;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);padding:8px 0 10px;font-weight:500}
+.cal-day{min-height:80px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 8px;position:relative;transition:border-color .15s}
+.cal-day:hover{border-color:var(--border-acc)}
+.cal-day.other-month{background:var(--surface2);opacity:.5}
+.cal-day.today .cal-day-num{background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700}
+.cal-day-num{font-family:'DM Mono',monospace;font-size:.8rem;font-weight:600;color:var(--text-2);margin-bottom:5px;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.cal-event{background:var(--blue-lt);border:1px solid var(--blue-md);border-radius:5px;padding:2px 7px;font-size:.65rem;font-weight:600;color:var(--blue);margin-bottom:3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .12s}
+.cal-event:hover{background:var(--blue-md)}
+.cal-event.no-date{background:var(--surface2);border-color:var(--border);color:var(--text-3)}
+
+/* no-date list */
+.cal-undated{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px}
+.cal-undated-title{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:12px;font-weight:500}
+.undated-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.undated-row:last-child{border-bottom:none}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text-3)}
+.empty-icon{font-size:2rem;margin-bottom:8px;opacity:.5}
+.empty p{font-size:.85rem}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--border-acc);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--text);color:#fff;padding:11px 16px;border-radius:var(--radius-sm);font-size:.83rem;font-weight:500;box-shadow:var(--shadow-lg);transform:translateY(60px);opacity:0;transition:all .26s cubic-bezier(.34,1.56,.64,1);z-index:9999;display:flex;align-items:center;gap:8px}
+.toast-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);flex-shrink:0}
+.toast.show{transform:translateY(0);opacity:1}
+@media(max-width:700px){
+  header{padding:0 16px}
+  .container{padding:20px 14px}
+  .tab-bar .tab{padding:6px 10px;font-size:.7rem}
+  .cal-grid{gap:1px}
+  .cal-day{min-height:56px;padding:4px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAME SCREEN -->
+<div id="name-screen">
+  <div class="name-box">
+    <div class="name-logo">🎲</div>
+    <div class="name-title">Die Meeples</div>
+    <div class="name-sub">Wie heißt du? Das war's schon.</div>
+    <label class="name-label" for="name-input">Dein Name</label>
+    <input class="name-input" id="name-input" placeholder="z.B. Max Mustermann" autocomplete="off" onkeydown="if(event.key==='Enter')enterWithName()">
+    <div class="name-error" id="name-error">Bitte gib einen Namen ein.</div>
+    <button class="btn-name" onclick="enterWithName()">Loslegen →</button>
+    <div id="known-section" style="display:none">
+      <div class="known-section">
+        <div class="known-divider"><span>oder schnell wählen</span></div>
+        <div class="known-list" id="known-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🎲</div>
+      <div>
+        <div class="brand-name">Die Meeples</div>
+        <div class="brand-sub">Spieleabend Planer</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="tab-bar">
+        <button class="tab active" onclick="showTab('termine',this)">Termine</button>
+        <button class="tab" onclick="showTab('kalender',this)">Kalender</button>
+        <button class="tab" onclick="showTab('ergebnisse',this)">Ergebnisse</button>
+      </div>
+      <div class="user-pill" onclick="switchUser()">
+        <div class="av av-lg" id="hdr-av"></div>
+        <span class="user-pill-name" id="hdr-name"></span>
+        <span class="user-switch">wechseln</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- TERMINE TAB -->
+    <div id="tab-termine" class="tab-content active">
+      <div class="form-card">
+        <div class="section-lbl">Neuen Termin erstellen</div>
+        <div class="form-grid">
+          <div class="form-field"><label>Titel</label><input class="input-field" id="new-title" placeholder="z.B. Spieleabend bei Max"></div>
+          <div class="form-field"><label>Datum &amp; Uhrzeit</label><input class="input-field" id="new-date" type="datetime-local"></div>
+          <div class="form-field"><label>Ort</label><input class="input-field" id="new-ort" placeholder="z.B. Wohnzimmer, Café …"></div>
+          <div class="form-field"><label>Ersteller</label><input class="input-field" id="new-creator" readonly></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:18px">
+          <div>
+            <div style="font-weight:600;font-size:.88rem;margin-bottom:2px">Spielvorschläge erlauben</div>
+            <div style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3)">Alle Teilnehmer können Spiele hinzufügen</div>
+          </div>
+          <label class="toggle-wrap"><input type="checkbox" id="new-offen" checked><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+        </div>
+        <button class="btn btn-blue" onclick="createTermin()">+ Termin erstellen</button>
+      </div>
+      <div class="section-lbl">Alle Termine</div>
+      <div id="termine-list"></div>
+    </div>
+
+    <!-- KALENDER TAB -->
+    <div id="tab-kalender" class="tab-content">
+      <div class="form-card" style="padding:24px">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="calPrev()">‹</button>
+          <div class="cal-month" id="cal-month-lbl"></div>
+          <button class="cal-nav-btn" onclick="calNext()">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid">
+          <div class="cal-dow">Mo</div><div class="cal-dow">Di</div><div class="cal-dow">Mi</div>
+          <div class="cal-dow">Do</div><div class="cal-dow">Fr</div><div class="cal-dow">Sa</div><div class="cal-dow">So</div>
+        </div>
+      </div>
+      <div id="cal-undated-wrap"></div>
+    </div>
+
+    <!-- ERGEBNISSE TAB -->
+    <div id="tab-ergebnisse" class="tab-content">
+      <div class="section-lbl">Abstimmungsergebnisse</div>
+      <div id="ergebnisse-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SPIEL HINZUFÜGEN MODAL (3 Tabs: Suche / Link / Manuell) -->
+<div id="add-spiel-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeAddModal()">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:500px;position:relative;animation:up .2s ease;overflow:hidden">
+
+    <!-- Header -->
+    <div style="padding:22px 24px 0">
+      <button onclick="closeAddModal()" style="position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:.8rem;color:var(--text-3);display:flex;align-items:center;justify-content:center">&#x2715;</button>
+      <div style="font-size:1.1rem;font-weight:800;margin-bottom:14px">Spiel hinzufügen</div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:20px">
+        <button id="aTab-search" class="add-tab add-tab-active" onclick="switchAddTab('search')">&#128269; Suche</button>
+        <button id="aTab-link"   class="add-tab" onclick="switchAddTab('link')">&#128279; BGG-Link</button>
+        <button id="aTab-manual" class="add-tab" onclick="switchAddTab('manual')">&#9998; Manuell</button>
+      </div>
+    </div>
+
+    <!-- TAB: SUCHE -->
+    <div id="aPanel-search" style="padding:0 24px 24px">
+      <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;font-weight:500">Spielname</label>
+      <div style="position:relative;margin-bottom:10px">
+        <input class="input-field" id="as-query" placeholder="z.B. Catan, Wingspan …" oninput="onAddSearch()" onkeydown="onAddSearchKey(event)" autocomplete="off">
+        <div id="as-dd" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--border-acc);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:10;max-height:320px;overflow-y:auto;display:none;scrollbar-width:thin"></div>
+      </div>
+      <div id="as-error" style="display:none;font-size:.8rem;color:var(--red);padding:8px 12px;background:var(--red-lt);border-radius:8px;margin-bottom:10px"></div>
+      <div id="as-loading" style="display:none;align-items:center;gap:8px;font-size:.83rem;color:var(--text-3);margin-bottom:10px"><span class="spinner"></span> Suche bei BGG…</div>
+    </div>
+
+    <!-- TAB: LINK -->
+    <div id="aPanel-link" style="display:none;padding:0 24px 24px">
+      <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;font-weight:500">BGG-Link</label>
+      <input class="input-field" id="lf-url" placeholder="https://boardgamegeek.com/boardgame/13/catan" onkeydown="if(event.key==='Enter')loadFromLink()" style="margin-bottom:10px">
+      <div id="lf-error" style="display:none;font-size:.8rem;color:var(--red);margin-bottom:10px;padding:8px 12px;background:var(--red-lt);border-radius:8px"></div>
+      <div id="lf-loading" style="display:none;align-items:center;gap:8px;margin-bottom:10px;font-size:.83rem;color:var(--text-3)"><span class="spinner"></span> Lade Daten von BGG…</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-blue" id="lf-submit" onclick="loadFromLink()" style="flex:1">&#x2713; Laden</button>
+        <button class="btn btn-ghost" onclick="closeAddModal()">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- TAB: MANUELL -->
+    <div id="aPanel-manual" style="display:none;padding:0 24px 24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spielname *</label>
+          <input class="input-field" id="mf-name" placeholder="z.B. Catan" onkeydown="if(event.key==='Enter')saveManualSpiel()">
+        </div>
+        <div>
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spieler</label>
+          <input class="input-field" id="mf-players" placeholder="z.B. 2–5P">
+        </div>
+        <div>
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Komplexität</label>
+          <input class="input-field" id="mf-complexity" placeholder="z.B. 2.5">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Bild-URL <span style="opacity:.5">(optional)</span></label>
+          <input class="input-field" id="mf-image" placeholder="https://…">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">BGG-Link <span style="opacity:.5">(optional)</span></label>
+          <input class="input-field" id="mf-bggurl" placeholder="https://boardgamegeek.com/boardgame/…">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-blue" onclick="saveManualSpiel()" style="flex:1">🎲 Hinzufügen</button>
+        <button class="btn btn-ghost" onclick="closeAddModal()">Abbrechen</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- GITHUB SETUP MODAL -->
+<div id="gh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:32px;width:100%;max-width:480px;position:relative;animation:up .2s ease">
+    <div style="font-size:1.3rem;font-weight:800;margin-bottom:4px">⚙️ GitHub Verbindung</div>
+    <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text-3);margin-bottom:22px">Einmalige Einrichtung – Daten werden in deinem GitHub-Repo gespeichert und sind für alle sichtbar.</div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:.8rem;line-height:1.7">
+      <strong>So geht's:</strong><br>
+      1. Gehe zu <a href="https://github.com/new" target="_blank" style="color:var(--blue)">github.com/new</a> → neues <strong>privates</strong> Repo anlegen<br>
+      2. Gehe zu <a href="https://github.com/settings/tokens/new?scopes=repo&description=DieMeeples" target="_blank" style="color:var(--blue)">github.com/settings/tokens/new</a><br>
+      3. Scope: <strong>repo</strong> anhaken → Token generieren → hier einfügen
+    </div>
+
+    <div style="display:grid;gap:12px;margin-bottom:18px">
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">GitHub Username</label>
+        <input class="input-field" id="gh-user" placeholder="z.B. maxmustermann">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Repository Name</label>
+        <input class="input-field" id="gh-repo" placeholder="z.B. meeples-data">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Personal Access Token</label>
+        <input class="input-field" id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxx">
+      </div>
+    </div>
+    <div id="gh-error" style="display:none;color:var(--red);font-size:.8rem;margin-bottom:12px;padding:8px 12px;background:var(--red-lt);border-radius:8px"></div>
+    <div id="gh-loading" style="display:none;align-items:center;gap:8px;font-size:.83rem;color:var(--text-3);margin-bottom:12px"><span class="spinner"></span> Verbinde mit GitHub…</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-blue" onclick="saveGhConfig()" style="flex:1">✓ Verbinden & loslegen</button>
+      <button class="btn btn-ghost" onclick="skipGhConfig()">Später</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
+
+<script>
+const COLORS=['#3b6ef5','#16a34a','#e03535','#d97706','#7c3aed','#db2777','#0891b2','#ea580c','#4f46e5','#059669'];
+const SK={data:'spieleabend-v4',names:'sb_known_names',cur:'sb_cur_name'};
+let currentName='';
+let calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
+
+// ── Helpers ──
+function nameColor(n){let h=0;for(let i=0;i<n.length;i++)h=((h<<5)-h+n.charCodeAt(i))|0;return COLORS[Math.abs(h)%COLORS.length]}
+function nameInit(n){return n.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?'}
+function setAv(el,n){if(!el)return;el.textContent=nameInit(n);el.style.background=nameColor(n)}
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function proxyImg(url){if(!url)return null;if(url.startsWith('//'))url='https:'+url;return`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=400&fit=cover&output=webp`}
+function formatDate(dt){if(!dt)return'—';return new Date(dt).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+function formatTime(ts){return new Date(ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}
+function notify(msg){document.getElementById('toast-msg').textContent=msg;const t=document.getElementById('toast');t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+
+// ── Known names ──
+function getKnown(){try{return JSON.parse(localStorage.getItem(SK.names)||'[]')}catch(e){return[]}}
+function saveKnown(n){let a=getKnown().filter(x=>x!==n);a.unshift(n);localStorage.setItem(SK.names,JSON.stringify(a.slice(0,6)))}
+function renderKnown(){
+  const a=getKnown(),sec=document.getElementById('known-section'),list=document.getElementById('known-list');
+  if(!a.length){sec.style.display='none';return}
+  sec.style.display='block';
+  list.innerHTML=a.map(n=>`<div class="known-chip" onclick="startApp('${n.replace(/'/g,"\\'")}')"><div class="av av-md" style="background:${nameColor(n)}">${nameInit(n)}</div>${escHtml(n)}</div>`).join('')
+}
+
+// ── Auth ──
+async function enterWithName(){const v=document.getElementById('name-input').value.trim();if(!v){document.getElementById('name-error').classList.add('show');return}document.getElementById('name-error').classList.remove('show');startApp(v)}
+async function startApp(name){
+  currentName=name;saveKnown(name);localStorage.setItem(SK.cur,name);
+  document.getElementById('name-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('new-creator').value=name;
+  setAv(document.getElementById('hdr-av'),name);
+  document.getElementById('hdr-name').textContent=name;
+  updateGhStatusBtn();
+  try{await loadState();}catch(e){console.warn('loadState error:',e);}
+  renderTermine();
+  startPolling();
+}
+function switchUser(){currentName='';localStorage.removeItem(SK.cur);document.getElementById('app-screen').style.display='none';document.getElementById('name-screen').style.display='flex';document.getElementById('name-input').value='';renderKnown()}
+
+// ── GitHub Storage ──
+const GH_FILE = 'meeples-data.json';
+const GH_SK   = {user:'gh_user', repo:'gh_repo', token:'gh_token'};
+
+const GH_DEFAULT = {
+  user:  'jonaslunkenheimer-del',
+  repo:  'meeples-data',
+  token: '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'
+};
+function getGhCfg(){
+  return {
+    user:  localStorage.getItem(GH_SK.user)  || GH_DEFAULT.user,
+    repo:  localStorage.getItem(GH_SK.repo)  || GH_DEFAULT.repo,
+    token: localStorage.getItem(GH_SK.token) || GH_DEFAULT.token
+  };
+}
+function hasGhCfg(){ const c=getGhCfg(); return !!(c.user&&c.repo&&c.token); }
+function updateGhStatusBtn(){}
+
+function openGhModal(){
+  const cfg=getGhCfg();
+  document.getElementById('gh-user').value  = cfg.user;
+  document.getElementById('gh-repo').value  = cfg.repo;
+  document.getElementById('gh-token').value = cfg.token;
+  document.getElementById('gh-error').style.display   = 'none';
+  document.getElementById('gh-loading').style.display = 'none';
+  document.getElementById('gh-modal').style.display   = 'flex';
+}
+function closeGhModal(){ document.getElementById('gh-modal').style.display='none'; }
+function skipGhConfig(){ closeGhModal(); }
+
+async function saveGhConfig(){
+  const user  = document.getElementById('gh-user').value.trim();
+  const repo  = document.getElementById('gh-repo').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+  const errEl = document.getElementById('gh-error');
+  const loadEl= document.getElementById('gh-loading');
+  errEl.style.display='none';
+  if(!user||!repo||!token){errEl.textContent='Bitte alle Felder ausfüllen.';errEl.style.display='block';return;}
+  loadEl.style.display='flex';
+  try{
+    const r=await fetch('https://api.github.com/repos/'+user+'/'+repo,{
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
+    });
+    if(r.status===404){throw new Error('Repository nicht gefunden.');}
+    if(r.status===401){throw new Error('Token ungültig oder abgelaufen.');}
+    if(!r.ok){throw new Error('GitHub Fehler: '+r.status);}
+  }catch(e){
+    loadEl.style.display='none';
+    errEl.textContent=e.message||String(e);
+    errEl.style.display='block';
+    return;
+  }
+  localStorage.setItem(GH_SK.user,user);
+  localStorage.setItem(GH_SK.repo,repo);
+  localStorage.setItem(GH_SK.token,token);
+  loadEl.style.display='none';
+  closeGhModal();
+  await loadState();
+  renderTermine();
+  startPolling();
+  notify('✅ GitHub verbunden!');
+}
+
+// ── GitHub API helpers ──
+async function ghRequest(method, path, body){
+  const {user,repo,token}=getGhCfg();
+  const url='https://api.github.com/repos/'+user+'/'+repo+'/contents/'+path;
+  const opts={
+    method: method,
+    headers:{
+      'Authorization':'token '+token,
+      'Accept':'application/vnd.github+json',
+      'Content-Type':'application/json',
+      'X-GitHub-Api-Version':'2022-11-28'
+    }
+  };
+  if(body) opts.body=JSON.stringify(body);
+  const r=await fetch(url, opts);
+  return r;
+}
+
+async function ghGet(){
+  const r=await ghRequest('GET', GH_FILE);
+  if(r.status===404) return {content:null, sha:null};
+  if(!r.ok) throw new Error('GitHub read error '+r.status+': '+(await r.text().catch(()=>'')));
+  const j=await r.json();
+  // j.content is base64 encoded, possibly with newlines
+  const raw=j.content.replace(/\s/g,'');
+  const decoded=decodeURIComponent(escape(atob(raw)));
+  return {content: JSON.parse(decoded), sha: j.sha};
+}
+
+async function ghPut(data, sha){
+  const json=JSON.stringify(data, null, 2);
+  // Encode to base64 safely (handles UTF-8)
+  const b64=btoa(unescape(encodeURIComponent(json)));
+  const body={message:'Update Spieleabend Daten', content:b64};
+  if(sha) body.sha=sha;
+  const r=await ghRequest('PUT', GH_FILE, body);
+  if(r.status===409){
+    // Conflict: re-fetch sha and retry
+    const fresh=await ghGet();
+    if(fresh&&fresh.sha){
+      body.sha=fresh.sha;
+      const r2=await ghRequest('PUT', GH_FILE, body);
+      if(!r2.ok) throw new Error('GitHub Schreibfehler nach Konflikt: '+r2.status);
+      const j2=await r2.json();
+      return {sha: j2.content&&j2.content.sha};
+    }
+  }
+  if(!r.ok){
+    const errJson=await r.json().catch(()=>({}));
+    throw new Error(errJson.message||'GitHub write error '+r.status);
+  }
+  const j=await r.json();
+  return {sha: j.content&&j.content.sha};
+}
+
+// ── State ──
+let state = {termine:[], nextId:1};
+let _ghSha = null;
+
+async function loadState(){
+  if(location.protocol==='file:'){
+    showHttpsWarning();
+    try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e){}
+    return;
+  }
+  if(hasGhCfg()){
+    try{
+      const result=await ghGet();
+      if(result&&result.content){
+        state=result.content;
+        _ghSha=result.sha;
+        console.log('Loaded from GitHub, SHA:', _ghSha);
+      } else {
+        // File doesn't exist yet – use empty state, will be created on first save
+        console.log('GitHub: no data file yet, starting fresh');
+      }
+      return;
+    }catch(e){
+      console.warn('GitHub load failed:', e.message);
+      notify('⚠️ GitHub Fehler: '+e.message);
+    }
+  }
+  try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e){}
+}
+
+async function saveState(){
+  if(location.protocol!=='file:'&&hasGhCfg()){
+    try{
+      const result=await ghPut(state, _ghSha);
+      if(result&&result.sha) _ghSha=result.sha;
+      try{localStorage.setItem('spieleabend-v4',JSON.stringify(state));}catch(e){}
+      return;
+    }catch(e){
+      console.warn('GitHub save failed:', e.message);
+      notify('⚠️ Speichern fehlgeschlagen: '+e.message);
+    }
+  }
+  try{localStorage.setItem('spieleabend-v4',JSON.stringify(state));}catch(e){}
+}
+
+// Poll every 15s for changes
+let _pollInterval=null;
+function startPolling(){
+  if(_pollInterval) return;
+  if(location.protocol==='file:'||!hasGhCfg()) return;
+  _pollInterval=setInterval(async()=>{
+    try{
+      const result=await ghGet();
+      if(result&&result.sha&&result.sha!==_ghSha){
+        state=result.content;
+        _ghSha=result.sha;
+        renderTermine();
+        notify('🔄 Neue Änderungen geladen');
+      }
+    }catch(e){}
+  }, 15000);
+}
+// ── Tabs ──
+function showTab(tab,btn){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if(tab==='ergebnisse')renderErgebnisse();
+  if(tab==='kalender')renderKalender();
+}
+
+// ── Spielsuche via Claude API ──
+async function callClaude(prompt, maxTokens=800){
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      messages: [{role:'user', content: prompt}]
+    })
+  });
+  if(!resp.ok){
+    const err=await resp.text().catch(()=>'');
+    throw new Error(`API ${resp.status}: ${err.slice(0,100)}`);
+  }
+  const data = await resp.json();
+  const text = data.content.map(b=>b.text||'').join('');
+  return text.replace(/^```(?:json)?\n?/,'').replace(/\n?```$/,'').trim();
+}
+
+async function claudeSearch(query){
+  const json = await callClaude(
+    `You are a board game encyclopedia. Search for board games matching: "${query.replace(/"/g,"'")}"
+
+Return a JSON array of up to 8 best matches. Each item must have ONLY these fields:
+{"bggId":"13","name":"Catan","year":"1995","players":"3–4P","playtime":"60–120m","complexity":"2.3","rating":"7.1","bggUrl":"https://boardgamegeek.com/boardgame/13"}
+
+Rules:
+- bggId: real BGG numeric ID as string, or null if unsure
+- bggUrl: only if bggId is known, else null  
+- players: format like "2–5P" or "1P" or "2–4P"
+- playtime: format like "30m" or "60–120m"
+- complexity: number 1.0–5.0 as string
+- rating: BGG average 1–10 as string
+- NO "image" field
+Return ONLY the JSON array, nothing else.`, 1200);
+  return JSON.parse(json);
+}
+
+async function claudeDetails(nameOrId){
+  const json = await callClaude(
+    `You are a board game encyclopedia. Give details for this board game: "${String(nameOrId).replace(/"/g,"'")}"
+
+Return a single JSON object with ONLY these fields:
+{"bggId":"13","name":"Catan","year":"1995","players":"3–4P","playtime":"60–120m","complexity":"2.3","rating":"7.1","bggUrl":"https://boardgamegeek.com/boardgame/13"}
+
+Rules:
+- bggId: real BGG numeric ID as string, or null if unsure
+- bggUrl: only if bggId is known, else null
+- players: format like "2–5P"
+- playtime: format like "60–120m"  
+- complexity: number 1.0–5.0 as string
+- rating: BGG average 1–10 as string
+- NO "image" field
+Return ONLY the JSON object, nothing else.`, 400);
+  return JSON.parse(json);
+}
+
+// Used by BGG-link tab: extract ID from URL, use as search hint
+async function loadFromBggUrl(bggId, gameName){
+  const d = await claudeDetails(gameName || bggId);
+  if(d){
+    if(bggId){ d.bggId = bggId; d.bggUrl = `https://boardgamegeek.com/boardgame/${bggId}`; }
+    d.image = null;
+  }
+  return d;
+}
+
+// ── Spiele ──
+function getVorschlaeger(tid){return document.getElementById(`vs-${tid}`)?.value||currentName||''}
+async function removeSpiel(tid,sid){const t=getT(tid);if(!t)return;t.spiele=t.spiele.filter(s=>s.id!==sid);await saveState();rerenderCard(tid)}
+
+// ── Unified Add-Spiel Modal ──
+let _addTid=null;
+const _asState={res:[],th:{},hi:-1};
+const _debT={};
+
+function openAddModal(tid){
+  _addTid=tid;
+  // reset all panels
+  document.getElementById('as-query').value='';
+  document.getElementById('as-dd').style.display='none';
+  document.getElementById('as-dd').innerHTML='';
+  document.getElementById('as-error').style.display='none';
+  document.getElementById('as-loading').style.display='none';
+  document.getElementById('lf-url').value='';
+  document.getElementById('lf-error').style.display='none';
+  document.getElementById('lf-loading').style.display='none';
+  document.getElementById('lf-submit').disabled=false;
+  ['mf-name','mf-players','mf-complexity','mf-image','mf-bggurl'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mf-name').style.borderColor='';
+  switchAddTab('search');
+  document.getElementById('add-spiel-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('as-query').focus(),80);
+}
+function closeAddModal(){
+  document.getElementById('add-spiel-modal').style.display='none';
+  _addTid=null;
+}
+// keep old names working (buttons in termin body call these)
+function openLinkForm(tid){openAddModal(tid);switchAddTab('link')}
+function closeLinkForm(){closeAddModal()}
+function openManualForm(tid){openAddModal(tid);switchAddTab('manual')}
+function closeManualForm(){closeAddModal()}
+
+function switchAddTab(tab){
+  ['search','link','manual'].forEach(t=>{
+    document.getElementById('aPanel-'+t).style.display=t===tab?'block':'none';
+    document.getElementById('aTab-'+t).classList.toggle('add-tab-active',t===tab);
+  });
+  if(tab==='search') setTimeout(()=>document.getElementById('as-query').focus(),60);
+  if(tab==='link')   setTimeout(()=>document.getElementById('lf-url').focus(),60);
+  if(tab==='manual') setTimeout(()=>document.getElementById('mf-name').focus(),60);
+}
+
+// ── Tab: Suche ──
+async function onAddSearch(){
+  const val=document.getElementById('as-query').value.trim();
+  const dd=document.getElementById('as-dd');
+  const errEl=document.getElementById('as-error');
+  errEl.style.display='none';
+  if(val.length<2){dd.style.display='none';dd.innerHTML='';return}
+  // BGG link pasted directly in search box
+  if(/boardgamegeek\.com\/boardgame\/\d+/.test(val)){
+    dd.style.display='none';return;
+  }
+  dd.innerHTML=`<div style="padding:12px 14px;font-size:.82rem;color:var(--text-3);display:flex;align-items:center;gap:8px"><span class="spinner"></span> Suche…</div>`;
+  dd.style.display='block';
+  clearTimeout(_debT.s);
+  _debT.s=setTimeout(async()=>{
+    try{
+      const res=await claudeSearch(val);
+      Object.assign(_asState,{res,hi:-1});
+      if(!res.length){
+        dd.innerHTML=`<div style="padding:12px 14px;font-size:.82rem;color:var(--text-3)">Keine Ergebnisse f\u00fcr \u201e${escHtml(val)}\u201c</div>`;
+        return;
+      }
+      renderAsDropdown();
+    }catch(e){
+      dd.style.display='none';
+      errEl.textContent='\u26a0\ufe0f Suche fehlgeschlagen. Bitte versuche die manuelle Eingabe.';
+      errEl.style.display='block';
+    }
+  },600);
+}
+
+function renderAsDropdown(){
+  const dd=document.getElementById('as-dd');
+  dd.innerHTML=_asState.res.map((r,i)=>{
+    const sub=[r.year,r.players,r.playtime].filter(Boolean).join(' · ');
+    return`<div class="as-item${i===_asState.hi?' hi':''}" onmousedown="selectAsResult(${i})">
+      <div class="as-thumb-ph">🎲</div>
+      <div><div class="as-name">${escHtml(r.name)}</div><div class="as-sub">${escHtml(sub||r.bggId||'')}</div></div>
+    </div>`;
+  }).join('');
+  dd.style.display='block';
+}
+
+async function selectAsResult(idx){
+  const r=_asState.res[idx];if(!r)return;
+  const dd=document.getElementById('as-dd');
+  dd.style.display='none';
+  const tid=_addTid;
+  const d={...r, image:null};
+  closeAddModal();
+  const t=getT(tid);if(!t)return;
+  d.vorschlaeger=getVorschlaeger(tid);
+  t.spiele.push({...d,id:Date.now(),votes:{}});
+  await saveState();rerenderCard(tid);
+  notify(`\u201e${d.name}\u201c hinzugef\u00fcgt! 🎮`);
+}
+
+function onAddSearchKey(e){
+  const dd=document.getElementById('as-dd');
+  if(dd.style.display==='none'||!_asState.res.length) return;
+  if(e.key==='ArrowDown'){e.preventDefault();_asState.hi=Math.min(_asState.hi+1,_asState.res.length-1);renderAsDropdown()}
+  else if(e.key==='ArrowUp'){e.preventDefault();_asState.hi=Math.max(_asState.hi-1,-1);renderAsDropdown()}
+  else if(e.key==='Enter'){e.preventDefault();if(_asState.hi>=0)selectAsResult(_asState.hi)}
+  else if(e.key==='Escape'){dd.style.display='none'}
+}
+
+// ── Tab: BGG-Link ──
+async function loadFromLink(){
+  const val=document.getElementById('lf-url').value.trim();
+  const errEl=document.getElementById('lf-error');
+  const loadEl=document.getElementById('lf-loading');
+  const subBtn=document.getElementById('lf-submit');
+  errEl.style.display='none';
+  if(!val){errEl.textContent='Bitte einen BGG-Link eingeben.';errEl.style.display='block';return}
+  const m=val.match(/boardgamegeek\.com\/boardgame\/(\d+)/);
+  if(!m){errEl.textContent='Kein gültiger BGG-Link. Beispiel: https://boardgamegeek.com/boardgame/13/catan';errEl.style.display='block';return}
+  loadEl.style.display='flex';subBtn.disabled=true;
+  const tid=_addTid;
+  try{
+    const slug=(val.match(/boardgamegeek\.com\/boardgame\/\d+\/([^/?]+)/)||[])[1];
+    const nameHint=slug?slug.replace(/-/g,' '):null;
+    const d=await loadFromBggUrl(m[1], nameHint);
+    if(!d)throw new Error('no data');
+    closeAddModal();
+    const t=getT(tid);if(!t)return;
+    d.vorschlaeger=getVorschlaeger(tid);
+    t.spiele.push({...d,id:Date.now(),votes:{}});
+    await saveState();rerenderCard(tid);
+    notify(`\u201e${d.name}\u201c hinzugef\u00fcgt! 🎮`);
+  }catch(e){
+    loadEl.style.display='none';subBtn.disabled=false;
+    errEl.textContent='Laden fehlgeschlagen. Pr\u00fcfe den Link oder nutze die manuelle Eingabe.';
+    errEl.style.display='block';
+  }
+}
+
+// ── Tab: Manuell ──
+async function saveManualSpiel(){
+  const name=document.getElementById('mf-name').value.trim();
+  if(!name){document.getElementById('mf-name').style.borderColor='var(--red)';return}
+  document.getElementById('mf-name').style.borderColor='';
+  if(_addTid===null)return;
+  const t=getT(_addTid);if(!t)return;
+  const vorschlaeger=getVorschlaeger(_addTid);
+  t.spiele.push({
+    id:Date.now(), name, year:'', playtime:'',
+    players:document.getElementById('mf-players').value.trim(),
+    complexity:document.getElementById('mf-complexity').value.trim(),
+    image:document.getElementById('mf-image').value.trim()||null,
+    bggUrl:document.getElementById('mf-bggurl').value.trim()||null,
+    bggId:null, rating:'', votes:{}, vorschlaeger
+  });
+  await saveState();rerenderCard(_addTid);closeAddModal();
+  notify(`„${name}" manuell hinzugefügt! 🎲`);
+}
+// ── Voting ──
+async function voteFromStar(tid,sid,score){
+  const t=getT(tid);let voter=currentName&&t?.personen.includes(currentName)?currentName:document.getElementById(`vsel-${tid}`)?.value||'';
+  if(!voter){notify('Bitte Person auswählen!');return}
+  const s=t?.spiele.find(s=>s.id===sid);if(!s)return;if(!s.votes)s.votes={};s.votes[voter]=score;await saveState();rerenderCard(tid);notify(`${voter}: ${'★'.repeat(score)}`)
+}
+function avgScore(s){if(!s.votes||!Object.keys(s.votes).length)return 0;const v=Object.values(s.votes);return v.reduce((a,b)=>a+b,0)/v.length}
+
+// ── Collapse toggle ──
+function toggleTermin(tid){
+  const el=document.getElementById(`termin-${tid}`);
+  if(!el)return;
+  el.classList.toggle('open');
+  if(el.classList.contains('open')){const box=document.getElementById(`cb-${tid}`);if(box)box.scrollTop=box.scrollHeight}
+}
+
+// ── Smart re-render: only body of one card ──
+function rerenderCard(tid){
+  const el=document.getElementById(`termin-${tid}`);if(!el)return;
+  const t=getT(tid);if(!t)return;
+  const wasOpen=el.classList.contains('open');
+  el.outerHTML=buildTerminItem(t,wasOpen);
+  // re-attach chat scroll
+  const box=document.getElementById(`cb-${tid}`);if(box)box.scrollTop=box.scrollHeight;
+}
+
+// ── Termine CRUD ──
+function getT(id){return state.termine.find(t=>t.id===id)}
+
+async function createTermin(){
+  const title=document.getElementById('new-title').value.trim();
+  if(!title){document.getElementById('new-title').style.borderColor='var(--red)';return}
+  document.getElementById('new-title').style.borderColor='';
+  const date=document.getElementById('new-date').value;
+  const ort=document.getElementById('new-ort').value.trim();
+  const creator=document.getElementById('new-creator').value.trim()||currentName;
+  const offen=document.getElementById('new-offen')?.checked!==false;
+  const t={id:state.nextId++,title,date,ort,creator,offen,personen:creator?[creator]:[],spiele:[],chat:[]};
+  state.termine.unshift(t);
+  await saveState();
+  ['new-title','new-ort'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  const d=document.getElementById('new-date');if(d)d.value='';
+  renderTermine();
+  notify('Termin erstellt! 🎉');
+}
+
+async function deleteTermin(tid){
+  if(!confirm('Termin wirklich löschen?'))return;
+  state.termine=state.termine.filter(t=>t.id!==tid);
+  await saveState();renderTermine();
+}
+
+async function addSelf(tid){
+  const t=getT(tid);if(!t||!currentName)return;
+  if(!t.personen.includes(currentName))t.personen.push(currentName);
+  await saveState();rerenderCard(tid);
+}
+
+async function addPerson(tid){
+  const inp=document.getElementById(`pi-${tid}`);
+  const name=inp?.value.trim();if(!name)return;
+  const t=getT(tid);if(!t)return;
+  if(!t.personen.includes(name))t.personen.push(name);
+  inp.value='';
+  await saveState();rerenderCard(tid);
+}
+
+async function removePerson(tid,name){
+  const t=getT(tid);if(!t)return;
+  t.personen=t.personen.filter(p=>p!==name);
+  await saveState();rerenderCard(tid);
+}
+
+function buildChatMsgs(t){
+  if(!t.chat||!t.chat.length)return`<div class="chat-empty">Noch keine Nachrichten – fang an!</div>`;
+  return t.chat.map(m=>{
+    const mine=m.author===currentName;
+    return`<div class="msg-row${mine?' mine':''}">
+      <div class="av av-sm" style="background:${nameColor(m.author)};${mine?'display:none':''}">${nameInit(m.author)}</div>
+      <div class="bubble">${!mine?`<div class="bubble-name">${escHtml(m.author)}</div>`:''}${escHtml(m.text)}<div class="bubble-time">${formatTime(m.ts)}</div></div>
+    </div>`;
+  }).join('');
+}
+
+async function sendChat(tid){
+  const inp=document.getElementById(`ci-${tid}`);
+  const text=inp?.value.trim();if(!text)return;
+  const t=getT(tid);if(!t)return;
+  if(!t.chat)t.chat=[];
+  t.chat.push({id:Date.now(),author:currentName||'?',text,ts:Date.now()});
+  inp.value='';
+  await saveState();
+  const box=document.getElementById(`cb-${tid}`);
+  if(box){box.innerHTML=buildChatMsgs(t);box.scrollTop=box.scrollHeight}
+}
+
+function exportIcal(tid){
+  const t=getT(tid);if(!t||!t.date)return;
+  const dt=new Date(t.date);
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt=d=>`${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  const end=new Date(dt.getTime()+3*60*60*1000);
+  const uid=`spieleabend-${tid}@diemeeples`;
+  const spieleListe=t.spiele.map(s=>`- ${s.name}`).join('\\n');
+  const desc=`Erstellt von: ${t.creator}\\nTeilnehmer: ${t.personen.join(', ')}\\n\\nSpiele:\\n${spieleListe}`.replace(/\n/g,'\\n');
+  const ics=[
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Die Meeples//Spieleabend//DE',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTART:${fmt(dt)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${t.title}`,
+    t.ort?`LOCATION:${t.ort}`:'',
+    `DESCRIPTION:${desc}`,
+    'END:VEVENT','END:VCALENDAR'
+  ].filter(Boolean).join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${t.title.replace(/\s+/g,'-')}.ics`;a.click();
+}
+
+// ── Render all termine ──
+function renderTermine(){
+  const el=document.getElementById('termine-list');
+  if(!state.termine.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🎲</div><p>Noch keine Termine!</p></div>`;return}
+  el.innerHTML=state.termine.map(t=>buildTerminItem(t,false)).join('');
+}
+
+function buildTerminItem(t, open){
+  const alreadyIn=currentName&&t.personen.includes(currentName);
+  const canAddSpiel=t.offen!==false||t.creator===currentName;
+
+  // Summary chips
+  const dateChip=t.date?`<span class="chip">📅 ${formatDate(t.date)}</span>`:'';
+  const ortChip=t.ort?`<span class="chip">📍 ${escHtml(t.ort)}</span>`:'';
+  const personChip=`<span class="chip chip-green">👥 ${t.personen.length} dabei</span>`;
+  const spieleChip=`<span class="chip">🎮 ${t.spiele.length} Spiele</span>`;
+  const modeChip=t.offen!==false?`<span class="chip" style="color:var(--green);background:var(--green-lt);border-color:var(--green-bd)">🟢 Spielvorschläge</span>`:`<span class="chip" style="color:var(--gold);background:#fffbeb;border-color:#fde68a">📌 Spiel festgelegt</span>`;
+  const chatChip=(t.chat||[]).length?`<span class="chip">💬 ${t.chat.length}</span>`:'';
+
+  // Persons
+  const personenHtml=t.personen.map(p=>`<span class="person-chip"><div class="av av-sm" style="background:${nameColor(p)}">${nameInit(p)}</div><span>${escHtml(p)}</span><span class="rm" onclick="removePerson(${t.id},'${p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">×</span></span>`).join('');
+  const joinBtn=currentName&&!alreadyIn?`<button class="btn btn-outline btn-sm" onclick="addSelf(${t.id})" style="margin-bottom:8px">✋ Ich bin dabei</button>`:'';
+
+  // Voter select
+  const vOpts=t.personen.map(p=>`<option value="${escHtml(p)}"${p===currentName?' selected':''}>${escHtml(p)}</option>`).join('');
+  const voterSel=t.personen.length?`<select class="voter-select" id="vsel-${t.id}"><option value="">— Wer stimmt ab? —</option>${vOpts}</select>`:`<p style="font-size:.8rem;color:var(--text-3);margin-bottom:12px">Füge zuerst Personen hinzu.</p>`;
+
+  const sortedS=[...t.spiele].sort((a,b)=>avgScore(b)-avgScore(a));
+  const spieleHtml=t.spiele.length?`<div class="spiele-grid">${sortedS.map(s=>buildSpielCard(t,s)).join('')}</div>`:`<div class="empty" style="padding:20px"><div class="empty-icon" style="font-size:1.5rem">🎮</div><p>Noch keine Spiele.</p></div>`;
+
+  const addSpielSection=canAddSpiel?`
+    ${t.personen.length?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap"><span style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap">Vorgeschlagen von</span><select id="vs-${t.id}" style="flex:1;min-width:120px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:.82rem;color:var(--text);outline:none;cursor:pointer"><option value="">— wählen —</option>${t.personen.map(p=>`<option value="${escHtml(p)}"${p===currentName?' selected':''}>${escHtml(p)}</option>`).join('')}</select></div>`:''}
+    <div style="display:flex;gap:8px;margin-bottom:${t.spiele.length?'18px':'0'}">
+      <button class="btn btn-blue btn-sm" onclick="openAddModal(${t.id})">+ Spiel hinzufügen</button>
+    </div>`
+  :`<p style="font-size:.82rem;color:var(--text-3);margin-bottom:16px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-sm)">📌 <strong>${escHtml(t.creator)}</strong> hat das Spiel festgelegt.</p>`;
+
+  return`<div class="termin-item${open?' open':''}" id="termin-${t.id}">
+    <div class="termin-header" onclick="toggleTermin(${t.id})">
+      <div class="av av-md" style="background:${nameColor(t.creator||'?')}">${nameInit(t.creator||'?')}</div>
+      <div class="termin-summary">
+        <div class="termin-title-row">
+          <span class="termin-title">${escHtml(t.title)}</span>
+        </div>
+        <div class="chips-row">${dateChip}${ortChip}${personChip}${spieleChip}${chatChip}${modeChip}</div>
+      </div>
+      <span class="termin-chevron">▼</span>
+    </div>
+    <div class="termin-body">
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 0 0;margin-bottom:16px">
+        <button class="btn btn-outline btn-sm" onclick="exportIcal(${t.id})" title="Als .ics exportieren">📅 Exportieren</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteTermin(${t.id})">Löschen</button>
+      </div>
+
+      <div class="lbl">Teilnehmer</div>
+      ${joinBtn}
+      <div class="persons-wrap">${personenHtml||`<span style="font-size:.8rem;color:var(--text-3)">Noch niemand.</span>`}</div>
+      <div class="input-row" style="margin-bottom:0">
+        <input class="input-field" id="pi-${t.id}" placeholder="Name manuell hinzufügen …" onkeydown="if(event.key==='Enter')addPerson(${t.id})" style="flex:1">
+        <button class="btn btn-outline btn-sm" onclick="addPerson(${t.id})">+ Hinzufügen</button>
+      </div>
+
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="lbl" style="margin-bottom:0">Spiele</div>
+      </div>
+      ${addSpielSection}
+      ${t.spiele.length&&t.offen!==false?`<div class="lbl" style="margin-top:2px">Abstimmen als</div>${voterSel}`:''}
+      ${spieleHtml}
+
+      <div class="divider"></div>
+      <div class="lbl">💬 Chat</div>
+      <div class="chat-box" id="cb-${t.id}">${buildChatMsgs(t)}</div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="ci-${t.id}" placeholder="Nachricht schreiben …" onkeydown="onChatKey(event,${t.id})" autocomplete="off">
+        <button class="chat-send" onclick="sendChat(${t.id})">➤</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildSpielCard(t,s){
+  const avg=avgScore(s),vc=s.votes?Object.keys(s.votes).length:0,bw=avg>0?(avg/5*100).toFixed(0):0;
+  const pr=s.image?proxyImg(s.image):null;
+  const maxA=Math.max(...t.spiele.map(x=>avgScore(x)));
+  const isTop=vc>0&&avg===maxA&&avg>0;
+  const imgH=pr?`<img class="spiel-img" src="${pr}" alt="${escHtml(s.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:'';
+  const phH=`<div class="spiel-img-ph" ${pr?'style="display:none"':''}>🎲</div>`;
+  const stars=[1,2,3,4,5].map(i=>`<span class="star" onclick="voteFromStar(${t.id},${s.id},${i})">★</span>`).join('');
+  const vH=s.vorschlaeger?`<div class="vorschlag-chip"><div class="av" style="width:13px;height:13px;font-size:.4rem;border-radius:3px;background:${nameColor(s.vorschlaeger)}">${nameInit(s.vorschlaeger)}</div> ${escHtml(s.vorschlaeger)}</div>`:'';
+  const showVoting=t.offen!==false;
+  return`<div class="spiel-card${isTop?' top-ranked':''}">
+    ${isTop?'<div class="top-badge">🏆 Top Pick</div>':''}
+    <button class="spiel-rm" onclick="removeSpiel(${t.id},${s.id})">✕</button>
+    ${imgH}${phH}
+    <div class="spiel-body">
+      <div class="spiel-badges">${s.bggUrl?`<a href="${s.bggUrl}" target="_blank" class="badge badge-blue">BGG ↗</a>`:''}${s.rating?`<span class="badge badge-green">★ ${s.rating}</span>`:''}</div>
+      <div class="spiel-name">${escHtml(s.name)}</div>
+      <div class="spiel-meta">${s.year?`<span>${s.year}</span>`:''}${s.players?`<span>${s.players}</span>`:''}${s.playtime?`<span>${s.playtime}</span>`:''}${s.complexity?`<span>⚙ ${s.complexity}</span>`:''}</div>
+      ${vH}
+      ${showVoting?`
+      <div class="voting-lbl">Bewertung</div>
+      <div class="stars">${stars}</div>
+      <div class="votes-row"><span>${vc}×</span><div class="vote-bar-outer"><div class="vote-bar-inner" style="width:${bw}%"></div></div><span>${avg>0?avg.toFixed(1)+'/5':'—'}</span></div>
+      `:''}
+    </div>
+  </div>`
+}
+
+// ── KALENDER ──
+const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}renderKalender()}
+function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}renderKalender()}
+
+function renderKalender(){
+  document.getElementById('cal-month-lbl').textContent=`${MONATE[calMonth]} ${calYear}`;
+  const grid=document.getElementById('cal-grid');
+  // Remove old day cells (keep 7 header cells)
+  while(grid.children.length>7)grid.removeChild(grid.lastChild);
+
+  const today=new Date();
+  const firstDay=new Date(calYear,calMonth,1);
+  // Monday=0 offset
+  let startDow=firstDay.getDay()-1; if(startDow<0)startDow=6;
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+
+  // Build termine map by date string YYYY-MM-DD
+  const tMap={};
+  state.termine.forEach(t=>{
+    if(!t.date)return;
+    const d=new Date(t.date);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(!tMap[key])tMap[key]=[];
+    tMap[key].push(t);
+  });
+
+  // Total cells: fill to complete weeks
+  const totalCells=Math.ceil((startDow+daysInMonth)/7)*7;
+  for(let i=0;i<totalCells;i++){
+    const cell=document.createElement('div');
+    cell.className='cal-day';
+    let dayNum,isOther=false,thisMonth=false;
+    if(i<startDow){dayNum=daysInPrev-startDow+i+1;isOther=true}
+    else if(i>=startDow+daysInMonth){dayNum=i-startDow-daysInMonth+1;isOther=true}
+    else{dayNum=i-startDow+1;thisMonth=true}
+    if(isOther)cell.classList.add('other-month');
+    if(thisMonth&&dayNum===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear())cell.classList.add('today');
+
+    const numEl=document.createElement('div');numEl.className='cal-day-num';numEl.textContent=dayNum;cell.appendChild(numEl);
+
+    if(thisMonth){
+      const key=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+      (tMap[key]||[]).forEach(t=>{
+        const ev=document.createElement('div');
+        ev.className='cal-event';
+        const h=t.date?new Date(t.date).getHours():'';
+        const m=t.date?String(new Date(t.date).getMinutes()).padStart(2,'0'):'';
+        ev.textContent=`${h}:${m} ${t.title}`;
+        ev.title=t.title+(t.ort?` – ${t.ort}`:'');
+        ev.onclick=(e)=>{e.stopPropagation();jumpToTermin(t.id)};
+        cell.appendChild(ev);
+      });
+    }
+    grid.appendChild(cell);
+  }
+
+  // Undated termine
+  const undated=state.termine.filter(t=>!t.date);
+  const wrap=document.getElementById('cal-undated-wrap');
+  if(!undated.length){wrap.innerHTML='';return}
+  wrap.innerHTML=`<div class="cal-undated"><div class="cal-undated-title">Termine ohne Datum</div>${undated.map(t=>`<div class="undated-row"><div class="av av-sm" style="background:${nameColor(t.creator||'?')}">${nameInit(t.creator||'?')}</div><div style="flex:1"><strong style="font-size:.88rem">${escHtml(t.title)}</strong></div><button class="btn btn-outline btn-sm" onclick="jumpToTermin(${t.id})">Ansehen</button></div>`).join('')}</div>`;
+}
+
+function jumpToTermin(tid){
+  // Switch to Termine tab
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-termine').classList.add('active');
+  document.querySelectorAll('.tab')[0].classList.add('active');
+  // Open that card
+  setTimeout(()=>{
+    const el=document.getElementById(`termin-${tid}`);
+    if(el){el.classList.add('open');el.scrollIntoView({behavior:'smooth',block:'center'})}
+  },80);
+}
+
+// ── Ergebnisse ──
+function renderErgebnisse(){
+  const el=document.getElementById('ergebnisse-list');
+  if(!state.termine.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🏆</div><p>Noch keine Termine.</p></div>`;return}
+  el.innerHTML=state.termine.map(t=>{
+    if(!t.spiele.length)return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;margin-bottom:14px;box-shadow:var(--shadow-sm)"><div style="font-weight:700;margin-bottom:12px">${escHtml(t.title)}</div><div class="empty" style="padding:16px"><p>Noch keine Spiele.</p></div></div>`;
+    const sorted=[...t.spiele].sort((a,b)=>avgScore(b)-avgScore(a));
+    const rows=sorted.map((s,i)=>{
+      const avg=avgScore(s),medal=['🥇','🥈','🥉'][i]||`${i+1}.`,rc=['gold','silver','bronze'][i]||'',pr=s.image?proxyImg(s.image):null;
+      const imgEl=pr?`<img class="ergebnis-img" src="${pr}" onerror="this.outerHTML='<div class=ergebnis-img-ph>🎲</div>'">`:`<div class="ergebnis-img-ph">🎲</div>`;
+      const bd=s.votes&&Object.keys(s.votes).length?Object.entries(s.votes).map(([p,v])=>`<span style="font-size:.68rem;color:var(--text-3);font-family:'DM Mono',monospace">${escHtml(p)} ${v}★</span>`).join(' · '):`<span style="font-size:.68rem;color:var(--text-3)">Keine Stimmen</span>`;
+      return`<div class="ergebnis-row"><div class="rank-num ${rc}">${medal}</div>${imgEl}<div style="flex:1;min-width:0"><div class="ergebnis-name">${escHtml(s.name)}</div><div style="margin-top:2px">${bd}</div></div><div class="score-tag ${avg>0?'active':'dim'}">${avg>0?avg.toFixed(1)+' / 5':'—'}</div></div>`
+    }).join('');
+    return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;margin-bottom:14px;box-shadow:var(--shadow-sm)"><div style="font-weight:700;font-size:1rem;margin-bottom:3px">${escHtml(t.title)}</div><div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text-3);margin-bottom:16px">${t.date?formatDate(t.date):''}</div>${rows}</div>`
+  }).join('')
+}
+
+// ── Init ──
+renderKnown();
+const saved=localStorage.getItem(SK.cur);
+if(saved)startApp(saved);
+// Close modal on backdrop click
+document.getElementById('gh-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeGhModal();});
+</script>
+</body>
+</html>
