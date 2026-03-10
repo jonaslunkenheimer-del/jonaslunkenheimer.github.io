@@ -303,12 +303,19 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
           <div class="form-field"><label>Ort</label><input class="input-field" id="new-ort" placeholder="z.B. Wohnzimmer, Café …"></div>
           <div class="form-field"><label>Ersteller</label><input class="input-field" id="new-creator" readonly></div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px">
           <div>
             <div style="font-weight:600;font-size:.88rem;margin-bottom:2px">Spielvorschläge erlauben</div>
             <div style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3)">Alle Teilnehmer können Spiele hinzufügen</div>
           </div>
           <label class="toggle-wrap"><input type="checkbox" id="new-offen" checked><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:18px">
+          <div>
+            <div style="font-weight:600;font-size:.88rem;margin-bottom:2px">🔒 Privater Termin</div>
+            <div style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3)">Nur eingeladene Personen sehen diesen Termin</div>
+          </div>
+          <label class="toggle-wrap"><input type="checkbox" id="new-privat"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
         </div>
         <button class="btn btn-blue" onclick="createTermin()">+ Termin erstellen</button>
       </div>
@@ -439,6 +446,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
           <option value="true">🟢 Spielvorschläge offen</option>
           <option value="false">📌 Spiel bereits festgelegt</option>
         </select>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div>
+          <div style="font-weight:600;font-size:.85rem;margin-bottom:2px">🔒 Privater Termin</div>
+          <div style="font-size:.72rem;color:var(--text-3)">Nur eingeladene Personen sehen diesen Termin</div>
+        </div>
+        <label class="toggle-wrap"><input type="checkbox" id="edit-privat"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
       </div>
     </div>
     <div id="edit-error" style="display:none;color:var(--red);font-size:.82rem;margin-bottom:12px"></div>
@@ -1137,7 +1151,8 @@ async function createTermin(){
   const ort=document.getElementById('new-ort').value.trim();
   const creator=document.getElementById('new-creator').value.trim()||currentName;
   const offen=document.getElementById('new-offen')?.checked!==false;
-  const t={id:state.nextId++,title,date,ort,creator,offen,personen:creator?[creator]:[],spiele:[],chat:[]};
+  const privat=document.getElementById('new-privat')?.checked===true;
+  const t={id:state.nextId++,title,date,ort,creator,offen,privat,personen:creator?[creator]:[],spiele:[],chat:[]};
   state.termine.unshift(t);
   await saveState();
   ['new-title','new-ort'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
@@ -1303,6 +1318,7 @@ function openEditModal(tid){
   document.getElementById('edit-date').value  = t.date  || '';
   document.getElementById('edit-ort').value   = t.ort   || '';
   document.getElementById('edit-offen').value = t.offen===false ? 'false' : 'true';
+  document.getElementById('edit-privat').checked = t.privat===true;
   document.getElementById('edit-error').style.display = 'none';
   document.getElementById('edit-modal').style.display = 'flex';
 }
@@ -1323,6 +1339,7 @@ async function saveEditTermin(){
   t.date   = document.getElementById('edit-date').value;
   t.ort    = document.getElementById('edit-ort').value.trim();
   t.offen  = document.getElementById('edit-offen').value !== 'false';
+  t.privat = document.getElementById('edit-privat').checked;
   closeEditModal();
   await saveState();
   rerenderCard(_editTid);
@@ -1417,7 +1434,12 @@ function exportIcal(tid){
 function renderTermine(){
   const el=document.getElementById('termine-list');
   if(!state.termine.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🎲</div><p>Noch keine Termine!</p></div>`;return}
-  el.innerHTML=state.termine.map(t=>buildTerminItem(t,false)).join('');
+  const visibleTermine = state.termine.filter(t =>
+    !t.privat ||                              // öffentlich: alle sehen
+    t.creator === currentName ||              // Ersteller sieht immer
+    (t.personen && t.personen.includes(currentName)) // Eingeladene sehen
+  );
+  el.innerHTML=visibleTermine.map(t=>buildTerminItem(t,false)).join('');
 }
 
 function buildTerminItem(t, open){
@@ -1431,6 +1453,7 @@ function buildTerminItem(t, open){
   const personChip=`<span class="chip chip-green">👥 ${t.personen.length} dabei</span>`;
   const spieleChip=`<span class="chip">🎮 ${t.spiele.length} Spiele</span>`;
   const modeChip=t.offen!==false?`<span class="chip" style="color:var(--green);background:var(--green-lt);border-color:var(--green-bd)">🟢 Spielvorschläge</span>`:`<span class="chip" style="color:var(--gold);background:#fffbeb;border-color:#fde68a">📌 Spiel festgelegt</span>`;
+  const privatChip=t.privat?`<span class="chip" style="color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe">🔒 Privat</span>`:'';
   const chatChip=(t.chat||[]).length?`<span class="chip">💬 ${t.chat.length}</span>`:'';
 
   // Persons
@@ -1457,7 +1480,7 @@ function buildTerminItem(t, open){
         <div class="termin-title-row">
           <span class="termin-title">${escHtml(t.title)}</span>
         </div>
-        <div class="chips-row">${dateChip}${ortChip}${personChip}${spieleChip}${chatChip}${modeChip}</div>
+        <div class="chips-row">${dateChip}${ortChip}${personChip}${spieleChip}${chatChip}${modeChip}${privatChip}</div>
       </div>
       <span class="termin-chevron">▼</span>
     </div>
@@ -1547,7 +1570,10 @@ function renderKalender(){
 
   // Build termine map by date string YYYY-MM-DD
   const tMap={};
-  state.termine.forEach(t=>{
+  const kalenderTermine = state.termine.filter(t =>
+    !t.privat || t.creator===currentName || (t.personen&&t.personen.includes(currentName))
+  );
+  kalenderTermine.forEach(t=>{
     if(!t.date)return;
     const d=new Date(t.date);
     const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
