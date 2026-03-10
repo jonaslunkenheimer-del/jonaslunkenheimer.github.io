@@ -165,6 +165,15 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 
 /* mode badge */
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:.6rem;border-radius:5px;padding:3px 8px}
+.add-tab{flex:1;padding:6px 10px;border:none;background:transparent;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:600;font-size:.76rem;letter-spacing:.03em;cursor:pointer;color:var(--text-3);transition:all .18s;white-space:nowrap}
+.add-tab-active{background:var(--surface);color:var(--blue);box-shadow:var(--shadow-sm)}
+.as-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
+.as-item:last-child{border-bottom:none}
+.as-item:hover,.as-item.hi{background:var(--blue-lt)}
+.as-thumb{width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--surface2)}
+.as-thumb-ph{width:42px;height:42px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.as-name{font-size:.85rem;font-weight:600}
+.as-sub{font-family:'DM Mono',monospace;font-size:.64rem;color:var(--text-3);margin-top:1px}
 
 /* ── CHAT ── */
 .chat-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 14px 10px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;scroll-behavior:smooth}
@@ -329,46 +338,75 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
   </div>
 </div>
 
-<!-- MANUAL SPIEL MODAL -->
-<div id="manual-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:28px;width:100%;max-width:480px;position:relative;animation:up .2s ease;max-height:90vh;overflow-y:auto">
-    <button onclick="closeManualForm()" style="position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:.8rem;color:var(--text-3);display:flex;align-items:center;justify-content:center">&#x2715;</button>
-    <div style="font-size:1.1rem;font-weight:800;margin-bottom:4px">Spiel manuell hinzuf&#252;gen</div>
-    <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text-3);margin-bottom:20px">BGG nicht erreichbar? Kein Problem &#8211; trag die Infos selbst ein.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="grid-column:1/-1">
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spielname *</label>
-        <input class="input-field" id="mf-name" placeholder="z.B. Catan" onkeydown="if(event.key==='Enter')saveManualSpiel()">
-      </div>
-      <div>
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Jahr</label>
-        <input class="input-field" id="mf-year" placeholder="z.B. 1995" type="number" min="1900" max="2099">
-      </div>
-      <div>
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spieler</label>
-        <input class="input-field" id="mf-players" placeholder="z.B. 2&#8211;5P">
-      </div>
-      <div>
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spielzeit</label>
-        <input class="input-field" id="mf-playtime" placeholder="z.B. 60&#8211;90m">
-      </div>
-      <div>
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Komplexit&#228;t</label>
-        <input class="input-field" id="mf-complexity" placeholder="z.B. 2.5">
-      </div>
-      <div style="grid-column:1/-1">
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Bild-URL <span style="opacity:.5">(optional)</span></label>
-        <input class="input-field" id="mf-image" placeholder="https://&#8230;">
-      </div>
-      <div style="grid-column:1/-1">
-        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">BGG-Link <span style="opacity:.5">(optional)</span></label>
-        <input class="input-field" id="mf-bggurl" placeholder="https://boardgamegeek.com/boardgame/&#8230;">
+<!-- SPIEL HINZUFÜGEN MODAL (3 Tabs: Suche / Link / Manuell) -->
+<div id="add-spiel-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeAddModal()">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:500px;position:relative;animation:up .2s ease;overflow:hidden">
+
+    <!-- Header -->
+    <div style="padding:22px 24px 0">
+      <button onclick="closeAddModal()" style="position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:.8rem;color:var(--text-3);display:flex;align-items:center;justify-content:center">&#x2715;</button>
+      <div style="font-size:1.1rem;font-weight:800;margin-bottom:14px">Spiel hinzufügen</div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:20px">
+        <button id="aTab-search" class="add-tab add-tab-active" onclick="switchAddTab('search')">&#128269; Suche</button>
+        <button id="aTab-link"   class="add-tab" onclick="switchAddTab('link')">&#128279; BGG-Link</button>
+        <button id="aTab-manual" class="add-tab" onclick="switchAddTab('manual')">&#9998; Manuell</button>
       </div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-blue" onclick="saveManualSpiel()" style="flex:1">&#127922; Hinzuf&#252;gen</button>
-      <button class="btn btn-ghost" onclick="closeManualForm()">Abbrechen</button>
+
+    <!-- TAB: SUCHE -->
+    <div id="aPanel-search" style="padding:0 24px 24px">
+      <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;font-weight:500">Spielname</label>
+      <div style="position:relative;margin-bottom:10px">
+        <input class="input-field" id="as-query" placeholder="z.B. Catan, Wingspan …" oninput="onAddSearch()" onkeydown="onAddSearchKey(event)" autocomplete="off">
+        <div id="as-dd" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--border-acc);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:10;max-height:320px;overflow-y:auto;display:none;scrollbar-width:thin"></div>
+      </div>
+      <div id="as-error" style="display:none;font-size:.8rem;color:var(--red);padding:8px 12px;background:var(--red-lt);border-radius:8px;margin-bottom:10px"></div>
+      <div id="as-loading" style="display:none;align-items:center;gap:8px;font-size:.83rem;color:var(--text-3);margin-bottom:10px"><span class="spinner"></span> Suche bei BGG…</div>
     </div>
+
+    <!-- TAB: LINK -->
+    <div id="aPanel-link" style="display:none;padding:0 24px 24px">
+      <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;font-weight:500">BGG-Link</label>
+      <input class="input-field" id="lf-url" placeholder="https://boardgamegeek.com/boardgame/13/catan" onkeydown="if(event.key==='Enter')loadFromLink()" style="margin-bottom:10px">
+      <div id="lf-error" style="display:none;font-size:.8rem;color:var(--red);margin-bottom:10px;padding:8px 12px;background:var(--red-lt);border-radius:8px"></div>
+      <div id="lf-loading" style="display:none;align-items:center;gap:8px;margin-bottom:10px;font-size:.83rem;color:var(--text-3)"><span class="spinner"></span> Lade Daten von BGG…</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-blue" id="lf-submit" onclick="loadFromLink()" style="flex:1">&#x2713; Laden</button>
+        <button class="btn btn-ghost" onclick="closeAddModal()">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- TAB: MANUELL -->
+    <div id="aPanel-manual" style="display:none;padding:0 24px 24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spielname *</label>
+          <input class="input-field" id="mf-name" placeholder="z.B. Catan" onkeydown="if(event.key==='Enter')saveManualSpiel()">
+        </div>
+        <div>
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spieler</label>
+          <input class="input-field" id="mf-players" placeholder="z.B. 2–5P">
+        </div>
+        <div>
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Komplexität</label>
+          <input class="input-field" id="mf-complexity" placeholder="z.B. 2.5">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Bild-URL <span style="opacity:.5">(optional)</span></label>
+          <input class="input-field" id="mf-image" placeholder="https://…">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">BGG-Link <span style="opacity:.5">(optional)</span></label>
+          <input class="input-field" id="mf-bggurl" placeholder="https://boardgamegeek.com/boardgame/…">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-blue" onclick="saveManualSpiel()" style="flex:1">🎲 Hinzufügen</button>
+        <button class="btn btn-ghost" onclick="closeAddModal()">Abbrechen</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -528,36 +566,6 @@ async function bggDetails(id){
   };
 }
 
-// ── Autocomplete ──
-const acS={};
-async function onSpielInput(tid){
-  const inp=document.getElementById(`si-${tid}`),dd=document.getElementById(`dd-${tid}`),val=inp.value.trim();
-  if(/boardgamegeek\.com\/boardgame\/\d+/.test(val)){dd.classList.remove('open');return}
-  if(val.length<2){dd.classList.remove('open');return}
-  dd.innerHTML=`<div class="ac-msg"><span class="spinner"></span> Suche …</div>`;dd.classList.add('open');
-  debounce(`s${tid}`,async()=>{
-    try{
-      const res=await bggSearch(val);
-      if(!res.length){
-        dd.innerHTML=`<div class="ac-msg" style="flex-direction:column;align-items:flex-start;gap:8px">
-          <span>Kein Ergebnis f\u00fcr \u201e${escHtml(val)}\u201c</span>
-          <button class="btn btn-outline btn-sm" onmousedown="openManualForm(${tid},'${val.replace(/'/g,"\\'")}');closeAc(${tid})">\u2712\ufe0f Manuell hinzuf\u00fcgen</button>
-        </div>`;return;
-      }
-      const th=await bggThumbs(res.map(r=>r.bggId));
-      acS[tid]={res,th,hi:-1};renderAcDd(tid);
-    }catch(e){
-      dd.innerHTML=`<div class="ac-msg" style="flex-direction:column;align-items:flex-start;gap:8px">
-        <span>\u26a0\ufe0f BGG nicht erreichbar</span>
-        <button class="btn btn-outline btn-sm" onmousedown="openManualForm(${tid},'${val.replace(/'/g,"\\'")}');closeAc(${tid})">\u2712\ufe0f Manuell hinzuf\u00fcgen</button>
-      </div>`;
-    }
-  })
-}
-function renderAcDd(tid){const dd=document.getElementById(`dd-${tid}`);const ac=acS[tid];if(!ac)return;dd.innerHTML=ac.res.map((r,i)=>{const t=ac.th[r.bggId];const img=t?`<img class="ac-thumb" src="${proxyImg(t)}" onerror="this.style.display='none'">`:`<div class="ac-thumb-ph">🎲</div>`;return`<div class="ac-item ${i===ac.hi?'hi':''}" onmousedown="selAc(${tid},${i})">${img}<div><div class="ac-name">${escHtml(r.name)}</div><div class="ac-sub">${r.year||'?'} · #${r.bggId}</div></div></div>`}).join('');dd.classList.add('open')}
-async function selAc(tid,idx){const ac=acS[tid];if(!ac)return;document.getElementById(`si-${tid}`).value=ac.res[idx].name;closeAc(tid);await addSpielById(tid,ac.res[idx].bggId)}
-function closeAc(tid){document.getElementById(`dd-${tid}`)?.classList.remove('open')}
-function onSpielKey(e,tid){const ac=acS[tid];const dd=document.getElementById(`dd-${tid}`);if(!dd?.classList.contains('open')||!ac){if(e.key==='Enter')addSpiel(tid);return}if(e.key==='ArrowDown'){e.preventDefault();ac.hi=Math.min(ac.hi+1,ac.res.length-1);renderAcDd(tid)}else if(e.key==='ArrowUp'){e.preventDefault();ac.hi=Math.max(ac.hi-1,-1);renderAcDd(tid)}else if(e.key==='Enter'){e.preventDefault();if(ac.hi>=0)selAc(tid,ac.hi);else addSpiel(tid)}else if(e.key==='Escape')closeAc(tid)}
 
 // ── Termine CRUD ──
 function createTermin(){
@@ -608,97 +616,180 @@ function buildChatMsgs(t){if(!t.chat||!t.chat.length)return`<div class="chat-emp
 
 // ── Spiele ──
 function getVorschlaeger(tid){return document.getElementById(`vs-${tid}`)?.value||currentName||''}
-
-async function addSpiel(tid){
-  const inp=document.getElementById(`si-${tid}`);
-  const val=inp.value.trim();if(!val)return;closeAc(tid);
-  // Direct BGG URL paste
-  const m=val.match(/boardgamegeek\.com\/boardgame\/(\d+)/);
-  if(m){await addSpielById(tid,m[1]);return}
-  setBL(tid,true);
-  try{
-    const res=await bggSearch(val);
-    if(res.length){
-      await addSpielById(tid,res[0].bggId);
-    } else {
-      // No BGG results → open manual form pre-filled
-      setBL(tid,false);
-      inp.value='';
-      openManualForm(tid,val);
-      return;
-    }
-  }catch(e){
-    // BGG unreachable → offer manual entry
-    setBL(tid,false);
-    openManualForm(tid,val);
-    inp.value='';
-    return;
-  }
-  setBL(tid,false);
-}
-
-async function addSpielById(tid,bggId){
-  const t=getT(tid);if(!t)return;
-  if(t.spiele.find(s=>s.bggId===bggId)){notify('Bereits in der Liste!');return}
-  setBL(tid,true);
-  try{
-    const d=await bggDetails(bggId);
-    if(d){
-      d.vorschlaeger=getVorschlaeger(tid);
-      t.spiele.push({...d,id:Date.now(),votes:{}});
-      saveState();
-      const inp=document.getElementById(`si-${tid}`);if(inp)inp.value='';
-      rerenderCard(tid);
-      notify(`„${d.name}" hinzugefügt! 🎮`);
-    }
-  }catch(e){
-    setBL(tid,false);
-    openManualForm(tid,'');
-    return;
-  }
-  setBL(tid,false);
-}
-
-function setBL(tid,on){const b=document.getElementById(`sb-${tid}`);if(!b)return;b.innerHTML=on?'<span class="spinner"></span>':'+ Hinzufügen';b.disabled=on}
 function removeSpiel(tid,sid){const t=getT(tid);if(!t)return;t.spiele=t.spiele.filter(s=>s.id!==sid);saveState();rerenderCard(tid)}
 
-// ── Manual Spiel Form ──
-let _manualTid=null;
-function openManualForm(tid, prefill){
-  _manualTid=tid;
-  document.getElementById('mf-name').value=prefill||'';
-  ['mf-year','mf-players','mf-playtime','mf-complexity','mf-image','mf-bggurl'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('manual-modal').style.display='flex';
-  document.getElementById('mf-name').focus();
+// ── Unified Add-Spiel Modal ──
+let _addTid=null;
+const _asState={res:[],th:{},hi:-1};
+const _debT={};
+
+function openAddModal(tid){
+  _addTid=tid;
+  // reset all panels
+  document.getElementById('as-query').value='';
+  document.getElementById('as-dd').style.display='none';
+  document.getElementById('as-dd').innerHTML='';
+  document.getElementById('as-error').style.display='none';
+  document.getElementById('as-loading').style.display='none';
+  document.getElementById('lf-url').value='';
+  document.getElementById('lf-error').style.display='none';
+  document.getElementById('lf-loading').style.display='none';
+  document.getElementById('lf-submit').disabled=false;
+  ['mf-name','mf-players','mf-complexity','mf-image','mf-bggurl'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mf-name').style.borderColor='';
+  switchAddTab('search');
+  document.getElementById('add-spiel-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('as-query').focus(),80);
 }
-function closeManualForm(){
-  document.getElementById('manual-modal').style.display='none';
-  _manualTid=null;
+function closeAddModal(){
+  document.getElementById('add-spiel-modal').style.display='none';
+  _addTid=null;
 }
+// keep old names working (buttons in termin body call these)
+function openLinkForm(tid){openAddModal(tid);switchAddTab('link')}
+function closeLinkForm(){closeAddModal()}
+function openManualForm(tid){openAddModal(tid);switchAddTab('manual')}
+function closeManualForm(){closeAddModal()}
+
+function switchAddTab(tab){
+  ['search','link','manual'].forEach(t=>{
+    document.getElementById('aPanel-'+t).style.display=t===tab?'block':'none';
+    document.getElementById('aTab-'+t).classList.toggle('add-tab-active',t===tab);
+  });
+  if(tab==='search') setTimeout(()=>document.getElementById('as-query').focus(),60);
+  if(tab==='link')   setTimeout(()=>document.getElementById('lf-url').focus(),60);
+  if(tab==='manual') setTimeout(()=>document.getElementById('mf-name').focus(),60);
+}
+
+// ── Tab: Suche ──
+function onAddSearch(){
+  const val=document.getElementById('as-query').value.trim();
+  const dd=document.getElementById('as-dd');
+  const errEl=document.getElementById('as-error');
+  errEl.style.display='none';
+  if(val.length<2){dd.style.display='none';dd.innerHTML='';return}
+  // BGG link pasted directly in search box
+  if(/boardgamegeek\.com\/boardgame\/\d+/.test(val)){
+    dd.style.display='none';return;
+  }
+  dd.innerHTML=`<div style="padding:12px 14px;font-size:.82rem;color:var(--text-3);display:flex;align-items:center;gap:8px"><span class="spinner"></span> Suche…</div>`;
+  dd.style.display='block';
+  clearTimeout(_debT.s);
+  _debT.s=setTimeout(async()=>{
+    document.getElementById('as-loading').style.display='flex';
+    try{
+      const res=await bggSearch(val);
+      document.getElementById('as-loading').style.display='none';
+      if(!res.length){
+        dd.innerHTML=`<div style="padding:12px 14px;font-size:.82rem;color:var(--text-3)">Keine Ergebnisse für „${escHtml(val)}"</div>`;
+        return;
+      }
+      const th=await bggThumbs(res.map(r=>r.bggId));
+      Object.assign(_asState,{res,th,hi:-1});
+      renderAsDropdown();
+    }catch(e){
+      document.getElementById('as-loading').style.display='none';
+      dd.style.display='none';
+      errEl.textContent='⚠️ BGG nicht erreichbar. Versuche den BGG-Link-Tab oder die manuelle Eingabe.';
+      errEl.style.display='block';
+    }
+  },400);
+}
+
+function renderAsDropdown(){
+  const dd=document.getElementById('as-dd');
+  dd.innerHTML=_asState.res.map((r,i)=>{
+    const t=_asState.th[r.bggId];
+    const img=t?`<img class="as-thumb" src="${proxyImg(t)}" onerror="this.style.display='none'">`:`<div class="as-thumb-ph">🎲</div>`;
+    return`<div class="as-item${i===_asState.hi?' hi':''}" onmousedown="selectAsResult(${i})">
+      ${img}<div><div class="as-name">${escHtml(r.name)}</div><div class="as-sub">${r.year||'?'} · #${r.bggId}</div></div>
+    </div>`;
+  }).join('');
+  dd.style.display='block';
+}
+
+async function selectAsResult(idx){
+  const r=_asState.res[idx];if(!r)return;
+  const dd=document.getElementById('as-dd');
+  dd.style.display='none';
+  document.getElementById('as-query').value=r.name;
+  document.getElementById('as-loading').style.display='flex';
+  const tid=_addTid;
+  try{
+    const d=await bggDetails(r.bggId);
+    document.getElementById('as-loading').style.display='none';
+    if(!d)throw new Error('no data');
+    closeAddModal();
+    const t=getT(tid);if(!t)return;
+    if(t.spiele.find(s=>s.bggId===d.bggId)){notify('Bereits in der Liste!');return}
+    d.vorschlaeger=getVorschlaeger(tid);
+    t.spiele.push({...d,id:Date.now(),votes:{}});
+    saveState();rerenderCard(tid);
+    notify(`„${d.name}" hinzugefügt! 🎮`);
+  }catch(e){
+    document.getElementById('as-loading').style.display='none';
+    document.getElementById('as-error').textContent='BGG nicht erreichbar. Bitte versuche den Link-Tab.';
+    document.getElementById('as-error').style.display='block';
+  }
+}
+
+function onAddSearchKey(e){
+  const dd=document.getElementById('as-dd');
+  if(dd.style.display==='none'||!_asState.res.length) return;
+  if(e.key==='ArrowDown'){e.preventDefault();_asState.hi=Math.min(_asState.hi+1,_asState.res.length-1);renderAsDropdown()}
+  else if(e.key==='ArrowUp'){e.preventDefault();_asState.hi=Math.max(_asState.hi-1,-1);renderAsDropdown()}
+  else if(e.key==='Enter'){e.preventDefault();if(_asState.hi>=0)selectAsResult(_asState.hi)}
+  else if(e.key==='Escape'){dd.style.display='none'}
+}
+
+// ── Tab: BGG-Link ──
+async function loadFromLink(){
+  const val=document.getElementById('lf-url').value.trim();
+  const errEl=document.getElementById('lf-error');
+  const loadEl=document.getElementById('lf-loading');
+  const subBtn=document.getElementById('lf-submit');
+  errEl.style.display='none';
+  if(!val){errEl.textContent='Bitte einen BGG-Link eingeben.';errEl.style.display='block';return}
+  const m=val.match(/boardgamegeek\.com\/boardgame\/(\d+)/);
+  if(!m){errEl.textContent='Kein gültiger BGG-Link. Beispiel: https://boardgamegeek.com/boardgame/13/catan';errEl.style.display='block';return}
+  loadEl.style.display='flex';subBtn.disabled=true;
+  const tid=_addTid;
+  try{
+    const d=await bggDetails(m[1]);
+    if(!d)throw new Error('no data');
+    closeAddModal();
+    const t=getT(tid);if(!t)return;
+    if(t.spiele.find(s=>s.bggId===d.bggId)){notify('Bereits in der Liste!');return}
+    d.vorschlaeger=getVorschlaeger(tid);
+    t.spiele.push({...d,id:Date.now(),votes:{}});
+    saveState();rerenderCard(tid);
+    notify(`„${d.name}" hinzugefügt! 🎮`);
+  }catch(e){
+    loadEl.style.display='none';subBtn.disabled=false;
+    errEl.textContent='BGG nicht erreichbar oder ungültige ID. Prüfe den Link oder nutze die manuelle Eingabe.';
+    errEl.style.display='block';
+  }
+}
+
+// ── Tab: Manuell ──
 function saveManualSpiel(){
   const name=document.getElementById('mf-name').value.trim();
   if(!name){document.getElementById('mf-name').style.borderColor='var(--red)';return}
   document.getElementById('mf-name').style.borderColor='';
-  if(_manualTid===null)return;
-  const t=getT(_manualTid);if(!t)return;
-  const vorschlaeger=getVorschlaeger(_manualTid);
+  if(_addTid===null)return;
+  const t=getT(_addTid);if(!t)return;
+  const vorschlaeger=getVorschlaeger(_addTid);
   t.spiele.push({
-    id:Date.now(),
-    name,
-    year:document.getElementById('mf-year').value.trim(),
+    id:Date.now(), name, year:'', playtime:'',
     players:document.getElementById('mf-players').value.trim(),
-    playtime:document.getElementById('mf-playtime').value.trim(),
     complexity:document.getElementById('mf-complexity').value.trim(),
     image:document.getElementById('mf-image').value.trim()||null,
     bggUrl:document.getElementById('mf-bggurl').value.trim()||null,
     bggId:null, rating:'', votes:{}, vorschlaeger
   });
-  saveState();
-  rerenderCard(_manualTid);
-  closeManualForm();
+  saveState();rerenderCard(_addTid);closeAddModal();
   notify(`„${name}" manuell hinzugefügt! 🎲`);
 }
-
 // ── Voting ──
 function voteFromStar(tid,sid,score){
   const t=getT(tid);let voter=currentName&&t?.personen.includes(currentName)?currentName:document.getElementById(`vsel-${tid}`)?.value||'';
@@ -756,14 +847,9 @@ function buildTerminItem(t, open){
   const spieleHtml=t.spiele.length?`<div class="spiele-grid">${sortedS.map(s=>buildSpielCard(t,s)).join('')}</div>`:`<div class="empty" style="padding:20px"><div class="empty-icon" style="font-size:1.5rem">🎮</div><p>Noch keine Spiele.</p></div>`;
 
   const addSpielSection=canAddSpiel?`
-    ${t.personen.length?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap"><span style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap">Vorgeschlagen von</span><select id="vs-${t.id}" style="flex:1;min-width:120px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:.82rem;color:var(--text);outline:none;cursor:pointer"><option value="">— wählen —</option>${t.personen.map(p=>`<option value="${escHtml(p)}"${p===currentName?' selected':''}>${escHtml(p)}</option>`).join('')}</select></div>`:''}
-    <div class="input-row" style="margin-bottom:${t.spiele.length?'18px':'0'}">
-      <div class="search-wrap">
-        <input class="input-field" id="si-${t.id}" placeholder="Spielname tippen – Autocomplete via BGG …" oninput="onSpielInput(${t.id})" onkeydown="onSpielKey(event,${t.id})" onblur="setTimeout(()=>closeAc(${t.id}),180)" autocomplete="off" style="width:100%">
-        <div class="ac-dd" id="dd-${t.id}"></div>
-      </div>
-      <button class="btn btn-blue btn-sm" id="sb-${t.id}" onclick="addSpiel(${t.id})">+ Hinzufügen</button>
-      <button class="btn btn-ghost btn-sm" onclick="openManualForm(${t.id},'')" title="Manuell hinzufügen (ohne BGG)">&#9998;</button>
+    ${t.personen.length?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap"><span style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap">Vorgeschlagen von</span><select id="vs-${t.id}" style="flex:1;min-width:120px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:.82rem;color:var(--text);outline:none;cursor:pointer"><option value="">— wählen —</option>${t.personen.map(p=>`<option value="${escHtml(p)}"${p===currentName?' selected':''}>${escHtml(p)}</option>`).join('')}</select></div>`:''}
+    <div style="display:flex;gap:8px;margin-bottom:${t.spiele.length?'18px':'0'}">
+      <button class="btn btn-blue btn-sm" onclick="openAddModal(${t.id})">+ Spiel hinzufügen</button>
     </div>`
   :`<p style="font-size:.82rem;color:var(--text-3);margin-bottom:16px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-sm)">📌 <strong>${escHtml(t.creator)}</strong> hat das Spiel festgelegt.</p>`;
 
