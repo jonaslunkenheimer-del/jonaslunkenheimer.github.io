@@ -1,33 +1,33 @@
-name: Deploy Spieleabend Planer
+name: Deploy Die Meeples
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject API Token (split to avoid push protection)
+      - name: Inject secrets into HTML
+        env:
+          SB_SERVICE_KEY: ${{ secrets.SB_SERVICE_KEY }}
         run: |
-          TOKEN="${{ secrets.MEEPLES_TOKEN }}"
-          HALF=$(( ${#TOKEN} / 2 ))
-          T1="${TOKEN:0:$HALF}"
-          T2="${TOKEN:$HALF}"
-          sed -i "s/%%GH_TOKEN_P1%%/$T1/g" index.html
-          sed -i "s/%%GH_TOKEN_P2%%/$T2/g" index.html
+          # Replace placeholder with actual secret
+          sed -i "s|%%SB_SERVICE_KEY%%|${SB_SERVICE_KEY}|g" brettspiel-planer.html
+          # Copy as index.html for GitHub Pages
+          cp brettspiel-planer.html index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          publish_dir: ./
           publish_branch: gh-pages
-          exclude_assets: '.github'
+          include_files: index.html
