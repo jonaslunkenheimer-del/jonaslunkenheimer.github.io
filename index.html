@@ -248,6 +248,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 <body>
 
 <!-- NAME SCREEN -->
+
 <div id="name-screen">
   <div class="name-box">
     <div class="name-logo">🎲</div>
@@ -410,10 +411,6 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
   </div>
 </div>
 
-<!-- GITHUB SETUP MODAL -->
-<div id="gh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:32px;width:100%;max-width:480px;position:relative;animation:up .2s ease">
-    <div style="font-size:1.3rem;font-weight:800;margin-bottom:4px">⚙️ GitHub Verbindung</div>
     <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text-3);margin-bottom:22px">Einmalige Einrichtung – Daten werden in deinem GitHub-Repo gespeichert und sind für alle sichtbar.</div>
 
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:.8rem;line-height:1.7">
@@ -483,203 +480,104 @@ async function startApp(name){
   document.getElementById('new-creator').value=name;
   setAv(document.getElementById('hdr-av'),name);
   document.getElementById('hdr-name').textContent=name;
-  updateGhStatusBtn();
   try{await loadState();}catch(e){console.warn('loadState error:',e);}
   renderTermine();
   startPolling();
 }
 function switchUser(){currentName='';localStorage.removeItem(SK.cur);document.getElementById('app-screen').style.display='none';document.getElementById('name-screen').style.display='flex';document.getElementById('name-input').value='';renderKnown()}
 
-// ── GitHub Storage ──
-const GH_FILE = 'meeples-data.json';
-const GH_SK   = {user:'gh_user', repo:'gh_repo', token:'gh_token'};
+// ── Supabase Storage ──
+const SB_URL   = 'https://hsomxjwyzzgwxtjxvrts.supabase.co';
+const SB_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhzb214and5enpnd3h0anh2cnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMzQxMjAsImV4cCI6MjA4ODcxMDEyMH0.nFkr0yFoZLX1npisMNUDgZjJka99HJSeU7QH-G8QjQE';
+const SB_TABLE = 'spieleabend';
+const SB_ROW   = 1; // single-row store
 
-// Token wird zur Laufzeit aus zwei Teilen zusammengesetzt
-const _T1 = 'ghp_ySmdjI8YMXcpEoOe';
-const _T2 = 'jDLShEqNRY3EAp4Nf2w2';
-const GH_DEFAULT = {
-  user:  'jonaslunkenheimer-del',
-  repo:  'meeples-data',
-  token: _T1 + _T2
-};
-function getGhCfg(){
+function sbHeaders(){
   return {
-    user:  localStorage.getItem(GH_SK.user)  || GH_DEFAULT.user,
-    repo:  localStorage.getItem(GH_SK.repo)  || GH_DEFAULT.repo,
-    token: localStorage.getItem(GH_SK.token) || GH_DEFAULT.token
+    'Content-Type':  'application/json',
+    'apikey':        SB_ANON,
+    'Authorization': 'Bearer ' + SB_ANON,
+    'Prefer':        'return=representation'
   };
 }
-function hasGhCfg(){ const c=getGhCfg(); return !!(c.user&&c.repo&&c.token); }
-function updateGhStatusBtn(){}
 
-function openGhModal(){
-  const cfg=getGhCfg();
-  document.getElementById('gh-user').value  = cfg.user;
-  document.getElementById('gh-repo').value  = cfg.repo;
-  document.getElementById('gh-token').value = cfg.token;
-  document.getElementById('gh-error').style.display   = 'none';
-  document.getElementById('gh-loading').style.display = 'none';
-  document.getElementById('gh-modal').style.display   = 'flex';
-}
-function closeGhModal(){ document.getElementById('gh-modal').style.display='none'; }
-function skipGhConfig(){ closeGhModal(); }
-
-async function saveGhConfig(){
-  const user  = document.getElementById('gh-user').value.trim();
-  const repo  = document.getElementById('gh-repo').value.trim();
-  const token = document.getElementById('gh-token').value.trim();
-  const errEl = document.getElementById('gh-error');
-  const loadEl= document.getElementById('gh-loading');
-  errEl.style.display='none';
-  if(!user||!repo||!token){errEl.textContent='Bitte alle Felder ausfüllen.';errEl.style.display='block';return;}
-  loadEl.style.display='flex';
-  try{
-    const r=await fetch('https://api.github.com/repos/'+user+'/'+repo,{
-      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
-    });
-    if(r.status===404){throw new Error('Repository nicht gefunden.');}
-    if(r.status===401){throw new Error('Token ungültig oder abgelaufen.');}
-    if(!r.ok){throw new Error('GitHub Fehler: '+r.status);}
-  }catch(e){
-    loadEl.style.display='none';
-    errEl.textContent=e.message||String(e);
-    errEl.style.display='block';
-    return;
-  }
-  localStorage.setItem(GH_SK.user,user);
-  localStorage.setItem(GH_SK.repo,repo);
-  localStorage.setItem(GH_SK.token,token);
-  loadEl.style.display='none';
-  closeGhModal();
-  await loadState();
-  renderTermine();
-  startPolling();
-  notify('✅ GitHub verbunden!');
+async function sbLoad(){
+  const r = await fetch(
+    SB_URL + '/rest/v1/' + SB_TABLE + '?id=eq.' + SB_ROW + '&select=data',
+    {headers: sbHeaders()}
+  );
+  if(!r.ok) throw new Error('Supabase read error ' + r.status + ': ' + await r.text());
+  const rows = await r.json();
+  if(rows.length && rows[0].data) return rows[0].data;
+  return null;
 }
 
-// ── GitHub API helpers ──
-async function ghRequest(method, path, body){
-  const {user,repo,token}=getGhCfg();
-  const url='https://api.github.com/repos/'+user+'/'+repo+'/contents/'+path;
-  const opts={
-    method: method,
-    headers:{
-      'Authorization':'token '+token,
-      'Accept':'application/vnd.github+json',
-      'Content-Type':'application/json',
-      'X-GitHub-Api-Version':'2022-11-28'
+async function sbSave(data){
+  // Upsert: insert or update row with id=1
+  const r = await fetch(
+    SB_URL + '/rest/v1/' + SB_TABLE,
+    {
+      method:  'POST',
+      headers: {...sbHeaders(), 'Prefer': 'resolution=merge-duplicates,return=representation'},
+      body: JSON.stringify({id: SB_ROW, data: data})
     }
-  };
-  if(body) opts.body=JSON.stringify(body);
-  const r=await fetch(url, opts);
-  return r;
-}
-
-async function ghGet(){
-  const r=await ghRequest('GET', GH_FILE);
-  if(r.status===404) return {content:null, sha:null};
-  if(!r.ok) throw new Error('GitHub read error '+r.status+': '+(await r.text().catch(()=>'')));
-  const j=await r.json();
-  // j.content is base64 encoded, possibly with newlines
-  const raw=j.content.replace(/\s/g,'');
-  const decoded=decodeURIComponent(escape(atob(raw)));
-  return {content: JSON.parse(decoded), sha: j.sha};
-}
-
-async function ghPut(data, sha){
-  const json=JSON.stringify(data, null, 2);
-  const b64=btoa(unescape(encodeURIComponent(json)));
-  const body={message:'Update Spieleabend Daten', content:b64};
-  if(sha) body.sha=sha;
-  console.log('ghPut: writing to GitHub, sha=', sha||'(new file)');
-  const r=await ghRequest('PUT', GH_FILE, body);
-  const respText=await r.text();
-  console.log('ghPut response:', r.status, respText.slice(0,200));
-  if(r.status===409){
-    console.log('ghPut: conflict, re-fetching sha...');
-    const fresh=await ghGet();
-    if(fresh&&fresh.sha){
-      body.sha=fresh.sha;
-      const r2=await ghRequest('PUT', GH_FILE, body);
-      const t2=await r2.text();
-      if(!r2.ok) throw new Error('Konflikt beim Speichern ('+r2.status+'): '+t2.slice(0,100));
-      const j2=JSON.parse(t2);
-      return {sha: j2.content&&j2.content.sha};
-    }
-  }
-  if(!r.ok){
-    let errMsg='GitHub Fehler '+r.status;
-    try{ const ej=JSON.parse(respText); errMsg=ej.message||errMsg; }catch(e){}
-    throw new Error(errMsg+': '+respText.slice(0,100));
-  }
-  const j=JSON.parse(respText);
-  const newSha=j.content&&j.content.sha;
-  console.log('ghPut: success, new sha=', newSha);
-  return {sha: newSha};
+  );
+  if(!r.ok) throw new Error('Supabase write error ' + r.status + ': ' + await r.text());
+  return await r.json();
 }
 
 // ── State ──
 let state = {termine:[], nextId:1};
-let _ghSha = null;
 
 async function loadState(){
-  if(location.protocol==='file:'){
-    showHttpsWarning();
+  if(!SB_URL || SB_URL.includes('%%')){
     try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e){}
     return;
   }
-  if(hasGhCfg()){
-    try{
-      const result=await ghGet();
-      if(result&&result.content){
-        state=result.content;
-        _ghSha=result.sha;
-        console.log('Loaded from GitHub, SHA:', _ghSha);
-      } else {
-        // File doesn't exist yet – use empty state, will be created on first save
-        console.log('GitHub: no data file yet, starting fresh');
-      }
-      return;
-    }catch(e){
-      console.warn('GitHub load failed:', e.message);
-      notify('⚠️ GitHub Fehler: '+e.message);
-    }
+  try{
+    const data = await sbLoad();
+    if(data){ state = data; console.log('Loaded from Supabase ✓'); }
+    else { console.log('Supabase: no data yet, starting fresh'); }
+  }catch(e){
+    console.warn('Supabase load failed:', e.message);
+    notify('⚠️ Supabase Fehler: ' + e.message);
+    try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e2){}
   }
-  try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e){}
 }
 
 async function saveState(){
-  if(location.protocol!=='file:'&&hasGhCfg()){
+  if(SB_URL && !SB_URL.includes('%%')){
     try{
-      const result=await ghPut(state, _ghSha);
-      if(result&&result.sha) _ghSha=result.sha;
-      try{localStorage.setItem('spieleabend-v4',JSON.stringify(state));}catch(e){}
+      await sbSave(state);
+      try{localStorage.setItem('spieleabend-v4', JSON.stringify(state));}catch(e){}
+      console.log('Saved to Supabase ✓');
       return;
     }catch(e){
-      console.warn('GitHub save failed:', e.message);
-      notify('⚠️ Speichern fehlgeschlagen: '+e.message);
+      console.warn('Supabase save failed:', e.message);
+      notify('⚠️ Speichern fehlgeschlagen: ' + e.message);
     }
   }
-  try{localStorage.setItem('spieleabend-v4',JSON.stringify(state));}catch(e){}
+  try{localStorage.setItem('spieleabend-v4', JSON.stringify(state));}catch(e){}
 }
 
-// Poll every 15s for changes
-let _pollInterval=null;
+// Poll every 10s for changes by others
+let _pollInterval = null;
 function startPolling(){
-  if(_pollInterval) return;
-  if(location.protocol==='file:'||!hasGhCfg()) return;
-  _pollInterval=setInterval(async()=>{
+  if(_pollInterval || !SB_URL || SB_URL.includes('%%')) return;
+  _pollInterval = setInterval(async()=>{
     try{
-      const result=await ghGet();
-      if(result&&result.sha&&result.sha!==_ghSha){
-        state=result.content;
-        _ghSha=result.sha;
+      const data = await sbLoad();
+      if(data && JSON.stringify(data) !== JSON.stringify(state)){
+        state = data;
         renderTermine();
         notify('🔄 Neue Änderungen geladen');
       }
     }catch(e){}
-  }, 15000);
+  }, 10000);
 }
+
+function updateGhStatusBtn(){}
+
 // ── Tabs ──
 function showTab(tab,btn){
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
