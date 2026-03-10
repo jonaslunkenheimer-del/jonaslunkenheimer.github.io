@@ -577,13 +577,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 
     <div style="border-top:1px solid var(--border);margin:16px 0"></div>
 
-    <div style="display:flex;gap:8px;justify-content:space-between">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
       <button class="btn btn-ghost" onclick="closeProfileModal();switchUser()" style="color:var(--red)">🚪 Abmelden</button>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="closeProfileModal()">Abbrechen</button>
-        <button class="btn btn-blue" onclick="saveProfileName()">💾 Speichern</button>
-      </div>
+      <button class="btn btn-ghost" onclick="closeProfileModal()">Abbrechen</button>
     </div>
+    <button class="btn btn-blue" onclick="saveProfileName()" style="width:100%;margin-top:8px">💾 Name speichern</button>
   </div>
 </div>
 
