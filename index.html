@@ -410,6 +410,42 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
   </div>
 </div>
 
+<!-- GITHUB SETUP MODAL -->
+<div id="gh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:32px;width:100%;max-width:480px;position:relative;animation:up .2s ease">
+    <div style="font-size:1.3rem;font-weight:800;margin-bottom:4px">⚙️ GitHub Verbindung</div>
+    <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text-3);margin-bottom:22px">Einmalige Einrichtung – Daten werden in deinem GitHub-Repo gespeichert und sind für alle sichtbar.</div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:.8rem;line-height:1.7">
+      <strong>So geht's:</strong><br>
+      1. Gehe zu <a href="https://github.com/new" target="_blank" style="color:var(--blue)">github.com/new</a> → neues <strong>privates</strong> Repo anlegen<br>
+      2. Gehe zu <a href="https://github.com/settings/tokens/new?scopes=repo&description=DieMeeples" target="_blank" style="color:var(--blue)">github.com/settings/tokens/new</a><br>
+      3. Scope: <strong>repo</strong> anhaken → Token generieren → hier einfügen
+    </div>
+
+    <div style="display:grid;gap:12px;margin-bottom:18px">
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">GitHub Username</label>
+        <input class="input-field" id="gh-user" placeholder="z.B. maxmustermann">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Repository Name</label>
+        <input class="input-field" id="gh-repo" placeholder="z.B. meeples-data">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Personal Access Token</label>
+        <input class="input-field" id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxx">
+      </div>
+    </div>
+    <div id="gh-error" style="display:none;color:var(--red);font-size:.8rem;margin-bottom:12px;padding:8px 12px;background:var(--red-lt);border-radius:8px"></div>
+    <div id="gh-loading" style="display:none;align-items:center;gap:8px;font-size:.83rem;color:var(--text-3);margin-bottom:12px"><span class="spinner"></span> Verbinde mit GitHub…</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-blue" onclick="saveGhConfig()" style="flex:1">✓ Verbinden & loslegen</button>
+      <button class="btn btn-ghost" onclick="skipGhConfig()">Später</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
 
 <script>
@@ -447,58 +483,229 @@ async function startApp(name){
   document.getElementById('new-creator').value=name;
   setAv(document.getElementById('hdr-av'),name);
   document.getElementById('hdr-name').textContent=name;
+  updateGhStatusBtn();
   try{await loadState();}catch(e){console.warn('loadState error:',e);}
   renderTermine();
   startPolling();
 }
 function switchUser(){currentName='';localStorage.removeItem(SK.cur);document.getElementById('app-screen').style.display='none';document.getElementById('name-screen').style.display='flex';document.getElementById('name-input').value='';renderKnown()}
 
-// ── State (shared across all users) ──
-let state={termine:[],nextId:1};
-const SHARED_KEY='diemeeples-state-v1';
+// ── GitHub Storage ──
+const GH_FILE = 'meeples-data.json';
+const GH_SK   = {user:'gh_user', repo:'gh_repo', token:'gh_token'};
+
+const GH_DEFAULT = {
+  user:  'jonaslunkenheimer-del',
+  repo:  'meeples-data',
+  token: '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'
+};
+function getGhCfg(){
+  return {
+    user:  localStorage.getItem(GH_SK.user)  || GH_DEFAULT.user,
+    repo:  localStorage.getItem(GH_SK.repo)  || GH_DEFAULT.repo,
+    token: localStorage.getItem(GH_SK.token) || GH_DEFAULT.token
+  };
+}
+function hasGhCfg(){ const c=getGhCfg(); return !!(c.user && c.repo && c.token); }
+
+function updateGhStatusBtn(){
+  const lbl = document.getElementById('gh-status-lbl');
+  if(!lbl) return;
+  const cfg = getGhCfg();
+  if(cfg.user && cfg.repo && cfg.token){
+    lbl.textContent = cfg.user + '/' + cfg.repo;
+    document.getElementById('gh-status-btn').style.color = 'var(--green)';
+  } else {
+    lbl.textContent = 'GitHub einrichten';
+    document.getElementById('gh-status-btn').style.color = 'var(--red)';
+  }
+}
+
+function openGhModal(){
+  const cfg = getGhCfg();
+  document.getElementById('gh-user').value  = cfg.user;
+  document.getElementById('gh-repo').value  = cfg.repo;
+  document.getElementById('gh-token').value = cfg.token;
+  document.getElementById('gh-error').style.display   = 'none';
+  document.getElementById('gh-loading').style.display = 'none';
+  document.getElementById('gh-modal').style.display   = 'flex';
+}
+function closeGhModal(){ document.getElementById('gh-modal').style.display='none'; }
+function skipGhConfig(){ closeGhModal(); }
+
+async function saveGhConfig(){
+  const user  = document.getElementById('gh-user').value.trim();
+  const repo  = document.getElementById('gh-repo').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+  const errEl = document.getElementById('gh-error');
+  const loadEl= document.getElementById('gh-loading');
+  errEl.style.display='none';
+  if(!user||!repo||!token){errEl.textContent='Bitte alle Felder ausfüllen.';errEl.style.display='block';return;}
+  loadEl.style.display='flex';
+  // Test connection
+  try{
+    const r = await fetch(`https://api.github.com/repos/${user}/${repo}`, {
+      headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}
+    });
+    if(r.status===404){throw new Error('Repository nicht gefunden. Hast du es schon angelegt?');}
+    if(r.status===401){throw new Error('Token ungültig oder abgelaufen.');}
+    if(!r.ok){throw new Error('GitHub Fehler: '+r.status);}
+  }catch(e){
+    loadEl.style.display='none';
+    errEl.textContent = e.message||String(e);
+    errEl.style.display='block';
+    return;
+  }
+  localStorage.setItem(GH_SK.user,  user);
+  localStorage.setItem(GH_SK.repo,  repo);
+  localStorage.setItem(GH_SK.token, token);
+  loadEl.style.display='none';
+  closeGhModal();
+  updateGhStatusBtn();
+  // Load latest data from GitHub
+  await loadState();
+  renderTermine();
+  startPolling();
+  notify('✅ GitHub verbunden!');
+}
+
+// ── GitHub API helpers ──
+async function ghGet(){
+  const {user,repo,token} = getGhCfg();
+  if(!user||!repo||!token) return null;
+  const r = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/${GH_FILE}`,{
+    headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}
+  });
+  if(r.status===404) return {content:null, sha:null};
+  if(!r.ok) throw new Error('GitHub read error '+r.status);
+  const j = await r.json();
+  const content = JSON.parse(atob(j.content.replace(/\n/g,'')));
+  return {content, sha: j.sha};
+}
+
+async function ghPut(data, sha){
+  const {user,repo,token} = getGhCfg();
+  if(!user||!repo||!token) return;
+  const body = {
+    message: 'Update Spieleabend Daten',
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
+    ...(sha ? {sha} : {})
+  };
+  const r = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/${GH_FILE}`,{
+    method:'PUT',
+    headers:{
+      'Authorization':'Bearer '+token,
+      'Accept':'application/vnd.github+json',
+      'Content-Type':'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok){
+    const err = await r.json().catch(()=>({}));
+    // 409 = conflict (someone else wrote first) → re-fetch sha and retry once
+    if(r.status===409){
+      const fresh = await ghGet();
+      if(fresh){
+        body.sha = fresh.sha;
+        const r2 = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/${GH_FILE}`,{
+          method:'PUT',
+          headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+        if(!r2.ok) throw new Error('GitHub write conflict, bitte nochmal speichern.');
+        return await r2.json();
+      }
+    }
+    throw new Error(err.message || 'GitHub write error '+r.status);
+  }
+  return await r.json();
+}
+
+// ── State ──
+let state = {termine:[], nextId:1};
+let _ghSha = null;  // last known SHA for conflict detection
 
 async function loadState(){
-  try{
-    if(typeof window.storage!=='undefined'&&window.storage){
-      const r=await window.storage.get(SHARED_KEY,true);
-      if(r&&r.value){state=JSON.parse(r.value);return;}
+  if(hasGhCfg()){
+    // Check if we're on file:// – GitHub API requires HTTPS
+    if(location.protocol==='file:'){
+      showHttpsWarning();
+      try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e){}
+      return;
     }
-  }catch(e){console.warn('shared storage read failed:',e);}
-  // fallback: localStorage
-  try{const s=localStorage.getItem(SK.data);if(s)state=JSON.parse(s);}catch(e){}
+    try{
+      const result = await ghGet();
+      if(result && result.content){
+        state = result.content;
+        _ghSha = result.sha;
+      }
+      return;
+    }catch(e){
+      console.warn('GitHub load failed:', e.message);
+      notify('⚠️ GitHub nicht erreichbar – lokale Daten werden verwendet.');
+    }
+  }
+  // fallback localStorage
+  try{const s=localStorage.getItem('spieleabend-v4');if(s)state=JSON.parse(s);}catch(e){}
+}
+
+function showHttpsWarning(){
+  if(document.getElementById('https-warning')) return;
+  var div = document.createElement('div');
+  div.id = 'https-warning';
+  div.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:14px 20px;border-radius:12px;font-size:.82rem;max-width:420px;width:calc(100% - 40px);z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.3);line-height:1.6;text-align:center';
+  var title = document.createElement('div');
+  title.style.cssText = 'font-weight:700;margin-bottom:6px';
+  title.textContent = '⚠️ Lokale Datei – GitHub nicht erreichbar';
+  var msg = document.createElement('div');
+  msg.style.opacity = '.85';
+  msg.innerHTML = 'Die App muss über <strong>HTTPS</strong> laufen damit GitHub funktioniert.<br>Lade sie auf <strong>GitHub Pages</strong> hoch.';
+  var link = document.createElement('div');
+  link.style.marginTop = '10px';
+  link.innerHTML = '<a href="https://pages.github.com" target="_blank" style="color:#60a5fa;text-decoration:underline">→ GitHub Pages einrichten</a>';
+  var btn = document.createElement('button');
+  btn.textContent = '✕';
+  btn.style.cssText = 'position:absolute;top:8px;right:10px;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1rem';
+  btn.onclick = function(){ div.remove(); };
+  div.appendChild(title); div.appendChild(msg); div.appendChild(link); div.appendChild(btn);
+  document.body.appendChild(div);
+  setTimeout(function(){ if(div.parentNode) div.remove(); }, 15000);
 }
 
 async function saveState(){
-  let savedShared=false;
-  try{
-    if(typeof window.storage!=='undefined'&&window.storage){
-      await window.storage.set(SHARED_KEY,JSON.stringify(state),true);
-      savedShared=true;
+  if(hasGhCfg()){
+    try{
+      const result = await ghPut(state, _ghSha);
+      if(result && result.content) _ghSha = result.content.sha;
+      // also backup locally
+      try{localStorage.setItem('spieleabend-v4', JSON.stringify(state));}catch(e){}
+      return;
+    }catch(e){
+      console.warn('GitHub save failed:', e.message);
+      notify('⚠️ GitHub-Speichern fehlgeschlagen: '+e.message);
     }
-  }catch(e){console.warn('shared storage write failed:',e);}
-  // always also save locally as backup
-  try{localStorage.setItem(SK.data,JSON.stringify(state));}catch(e){}
+  }
+  // fallback localStorage
+  try{localStorage.setItem('spieleabend-v4', JSON.stringify(state));}catch(e){}
 }
 
-// Poll every 8s so users see each other’s changes
-let _pollInterval=null;
-async function startPolling(){
-  if(_pollInterval)return;
-  _pollInterval=setInterval(async()=>{
-    if(typeof window.storage==='undefined'||!window.storage)return;
+// Poll every 15s for changes by others
+let _pollInterval = null;
+function startPolling(){
+  if(_pollInterval) return;
+  if(!hasGhCfg()) return;
+  _pollInterval = setInterval(async()=>{
     try{
-      const r=await window.storage.get(SHARED_KEY,true);
-      if(r&&r.value){
-        const fresh=JSON.parse(r.value);
-        if(JSON.stringify(fresh)!==JSON.stringify(state)){
-          state=fresh;
-          renderTermine();
-        }
+      const result = await ghGet();
+      if(result && result.sha && result.sha !== _ghSha){
+        state = result.content;
+        _ghSha = result.sha;
+        renderTermine();
+        notify('🔄 Neue Änderungen geladen');
       }
     }catch(e){}
-  },8000);
+  }, 15000);
 }
-
 // ── Tabs ──
 function showTab(tab,btn){
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
@@ -1071,6 +1278,8 @@ function renderErgebnisse(){
 renderKnown();
 const saved=localStorage.getItem(SK.cur);
 if(saved)startApp(saved);
+// Close modal on backdrop click
+document.getElementById('gh-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeGhModal();});
 </script>
 </body>
 </html>
