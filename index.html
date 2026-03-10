@@ -256,7 +256,12 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
     <div class="name-logo">🎲</div>
     <div class="name-title">Die Meeples</div>
     <div class="name-sub">Spieleabend Planer</div>
-    <label class="name-label" for="login-email">Vorname</label>
+    <!-- Toggle Vorname / E-Mail -->
+    <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:16px;gap:3px">
+      <button id="toggle-vorname" onclick="setLoginMode('vorname')" style="flex:1;padding:6px;border-radius:8px;border:none;font-size:.8rem;font-weight:600;cursor:pointer;background:var(--blue);color:#fff;transition:all .15s">Vorname</button>
+      <button id="toggle-email" onclick="setLoginMode('email')" style="flex:1;padding:6px;border-radius:8px;border:none;font-size:.8rem;font-weight:600;cursor:pointer;background:transparent;color:var(--text-2);transition:all .15s">E-Mail</button>
+    </div>
+    <label class="name-label" id="login-input-label" for="login-email">Vorname</label>
     <input class="name-input" id="login-email" placeholder="z.B. Max" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
     <label class="name-label" for="login-pw" style="margin-top:10px">Passwort</label>
     <input class="name-input" id="login-pw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
@@ -639,15 +644,44 @@ function sbAuthHeaders(extra){
   return {'Content-Type':'application/json','apikey':SB_ANON,'Authorization':'Bearer '+tok,...(extra||{})};
 }
 
+let _loginMode = 'vorname';
+
+function setLoginMode(mode){
+  _loginMode = mode;
+  const inp  = document.getElementById('login-email');
+  const lbl  = document.getElementById('login-input-label');
+  const btnV = document.getElementById('toggle-vorname');
+  const btnE = document.getElementById('toggle-email');
+  if(mode === 'vorname'){
+    lbl.textContent  = 'Vorname';
+    inp.placeholder  = 'z.B. Max';
+    inp.type         = 'text';
+    inp.autocomplete = 'username';
+    btnV.style.background='var(--blue)'; btnV.style.color='#fff';
+    btnE.style.background='transparent'; btnE.style.color='var(--text-2)';
+  } else {
+    lbl.textContent  = 'E-Mail';
+    inp.placeholder  = 'max@meeple.de';
+    inp.type         = 'email';
+    inp.autocomplete = 'email';
+    btnV.style.background='transparent'; btnV.style.color='var(--text-2)';
+    btnE.style.background='var(--blue)'; btnE.style.color='#fff';
+  }
+  inp.value = '';
+  document.getElementById('name-error').style.display = 'none';
+}
+
 async function doLogin(){
   const input = document.getElementById('login-email').value.trim();
   const pw    = document.getElementById('login-pw').value;
   const errEl = document.getElementById('name-error');
   const btn   = document.getElementById('login-btn');
   errEl.style.display='none';
-  if(!input||!pw){errEl.textContent='Bitte Vorname und Passwort eingeben.';errEl.style.display='block';return;}
-  // Admin logs in with full email, everyone else just types their first name
-  const email = input.includes('@') ? input : input.toLowerCase() + '@meeple.de';
+  if(!input||!pw){errEl.textContent='Bitte '+(_loginMode==='vorname'?'Vorname':'E-Mail')+' und Passwort eingeben.';errEl.style.display='block';return;}
+  // Convert input to email
+  const email = input.includes('@') ? input.toLowerCase()
+              : _loginMode === 'vorname' ? input.toLowerCase() + '@meeple.de'
+              : input.toLowerCase();
   btn.textContent='Einloggen...';btn.disabled=true;
   try{
     const r = await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
