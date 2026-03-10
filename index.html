@@ -329,6 +329,49 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
   </div>
 </div>
 
+<!-- MANUAL SPIEL MODAL -->
+<div id="manual-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:28px;width:100%;max-width:480px;position:relative;animation:up .2s ease;max-height:90vh;overflow-y:auto">
+    <button onclick="closeManualForm()" style="position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:.8rem;color:var(--text-3);display:flex;align-items:center;justify-content:center">&#x2715;</button>
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:4px">Spiel manuell hinzuf&#252;gen</div>
+    <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text-3);margin-bottom:20px">BGG nicht erreichbar? Kein Problem &#8211; trag die Infos selbst ein.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="grid-column:1/-1">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spielname *</label>
+        <input class="input-field" id="mf-name" placeholder="z.B. Catan" onkeydown="if(event.key==='Enter')saveManualSpiel()">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Jahr</label>
+        <input class="input-field" id="mf-year" placeholder="z.B. 1995" type="number" min="1900" max="2099">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spieler</label>
+        <input class="input-field" id="mf-players" placeholder="z.B. 2&#8211;5P">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Spielzeit</label>
+        <input class="input-field" id="mf-playtime" placeholder="z.B. 60&#8211;90m">
+      </div>
+      <div>
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Komplexit&#228;t</label>
+        <input class="input-field" id="mf-complexity" placeholder="z.B. 2.5">
+      </div>
+      <div style="grid-column:1/-1">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">Bild-URL <span style="opacity:.5">(optional)</span></label>
+        <input class="input-field" id="mf-image" placeholder="https://&#8230;">
+      </div>
+      <div style="grid-column:1/-1">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500">BGG-Link <span style="opacity:.5">(optional)</span></label>
+        <input class="input-field" id="mf-bggurl" placeholder="https://boardgamegeek.com/boardgame/&#8230;">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-blue" onclick="saveManualSpiel()" style="flex:1">&#127922; Hinzuf&#252;gen</button>
+      <button class="btn btn-ghost" onclick="closeManualForm()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
 
 <script>
@@ -388,15 +431,102 @@ function showTab(tab,btn){
 // ── BGG ──
 const debT={};
 function debounce(k,fn,ms=400){clearTimeout(debT[k]);debT[k]=setTimeout(fn,ms)}
-async function bggFetch(path){
-  const u=`https://boardgamegeek.com/xmlapi2/${path}`;
-  const px=[`https://corsproxy.io/?${encodeURIComponent(u)}`,`https://api.allorigins.win/get?url=${encodeURIComponent(u)}`];
-  for(const p of px){try{const r=await fetch(p,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;let t;if(p.includes('allorigins')){const j=await r.json();t=j.contents}else{t=await r.text()}const x=new DOMParser().parseFromString(t,'text/xml');if(x.querySelector('parsererror'))continue;return x}catch(e){}}
-  throw new Error('Proxy failed')
+
+// Timeout-safe fetch (works on all browsers – no AbortSignal.timeout)
+function fetchWithTimeout(url, ms=10000){
+  return new Promise((resolve,reject)=>{
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),ms);
+    fetch(url,{signal:ctrl.signal})
+      .then(r=>{clearTimeout(timer);resolve(r)})
+      .catch(e=>{clearTimeout(timer);reject(e)});
+  });
 }
-async function bggSearch(q){const x=await bggFetch(`search?query=${encodeURIComponent(q)}&type=boardgame`);return[...x.querySelectorAll('item')].slice(0,8).map(i=>({bggId:i.getAttribute('id'),name:i.querySelector('name')?.getAttribute('value')||'?',year:i.querySelector('yearpublished')?.getAttribute('value')||''}))}
-async function bggThumbs(ids){if(!ids.length)return{};try{const x=await bggFetch(`thing?id=${ids.join(',')}`);const o={};x.querySelectorAll('item').forEach(i=>{let t=i.querySelector('thumbnail')?.textContent?.trim()||null;if(t?.startsWith('//'))t='https:'+t;o[i.getAttribute('id')]=t});return o}catch(e){return{}}}
-async function bggDetails(id){const x=await bggFetch(`thing?id=${id}&stats=1`);const i=x.querySelector('item');if(!i)return null;const name=i.querySelector('name[type="primary"]')?.getAttribute('value')||'?';let img=i.querySelector('image')?.textContent?.trim()||null;if(img?.startsWith('//'))img='https:'+img;const y=i.querySelector('yearpublished')?.getAttribute('value')||'';const mn=i.querySelector('minplayers')?.getAttribute('value')||'';const mx=i.querySelector('maxplayers')?.getAttribute('value')||'';const mt=i.querySelector('minplaytime')?.getAttribute('value')||'';const xt=i.querySelector('maxplaytime')?.getAttribute('value')||'';const w=parseFloat(i.querySelector('averageweight')?.getAttribute('value')||'0');const r=parseFloat(i.querySelector('average')?.getAttribute('value')||'0');return{bggId:id,name,image:img,year:y,players:mn&&mx?(mn===mx?`${mn}P`:`${mn}–${mx}P`):'',playtime:mt?(xt&&xt!==mt?`${mt}–${xt}m`:`${mt}m`):'',complexity:w>0?w.toFixed(1):'',rating:r>0?r.toFixed(1):'',bggUrl:`https://boardgamegeek.com/boardgame/${id}`}}
+
+// Parse XML from text, return null on failure
+function parseXml(text){
+  try{
+    const x=new DOMParser().parseFromString(text,'text/xml');
+    if(x.querySelector('parsererror'))return null;
+    return x;
+  }catch(e){return null}
+}
+
+// Try proxies in order, return parsed XML or throw
+async function bggFetch(path){
+  const bggUrl=`https://boardgamegeek.com/xmlapi2/${path}`;
+  const proxies=[
+    // Proxy 1: corsproxy.io (most reliable, direct passthrough)
+    async ()=>{
+      const r=await fetchWithTimeout(`https://corsproxy.io/?url=${encodeURIComponent(bggUrl)}`,10000);
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      return parseXml(await r.text());
+    },
+    // Proxy 2: allorigins wraps response in JSON
+    async ()=>{
+      const r=await fetchWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(bggUrl)}`,10000);
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      const j=await r.json();
+      return parseXml(j.contents||'');
+    },
+    // Proxy 3: corsproxy.io alternative encoding (without ?url=)
+    async ()=>{
+      const r=await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(bggUrl)}`,10000);
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      return parseXml(await r.text());
+    },
+  ];
+  for(const tryProxy of proxies){
+    try{
+      const xml=await tryProxy();
+      if(xml)return xml;
+    }catch(e){ /* try next */ }
+  }
+  throw new Error('BGG_UNREACHABLE');
+}
+
+async function bggSearch(q){
+  const x=await bggFetch(`search?query=${encodeURIComponent(q)}&type=boardgame`);
+  return[...x.querySelectorAll('item')].slice(0,8).map(i=>({
+    bggId:i.getAttribute('id'),
+    name:i.querySelector('name')?.getAttribute('value')||'?',
+    year:i.querySelector('yearpublished')?.getAttribute('value')||''
+  }));
+}
+async function bggThumbs(ids){
+  if(!ids.length)return{};
+  try{
+    const x=await bggFetch(`thing?id=${ids.join(',')}`);
+    const o={};
+    x.querySelectorAll('item').forEach(i=>{
+      let t=i.querySelector('thumbnail')?.textContent?.trim()||null;
+      if(t&&t.startsWith('//'))t='https:'+t;
+      o[i.getAttribute('id')]=t;
+    });
+    return o;
+  }catch(e){return{}}
+}
+async function bggDetails(id){
+  const x=await bggFetch(`thing?id=${id}&stats=1`);
+  const i=x.querySelector('item');if(!i)return null;
+  const name=i.querySelector('name[type="primary"]')?.getAttribute('value')||'?';
+  let img=i.querySelector('image')?.textContent?.trim()||null;
+  if(img&&img.startsWith('//'))img='https:'+img;
+  const y=i.querySelector('yearpublished')?.getAttribute('value')||'';
+  const mn=i.querySelector('minplayers')?.getAttribute('value')||'';
+  const mx=i.querySelector('maxplayers')?.getAttribute('value')||'';
+  const mt=i.querySelector('minplaytime')?.getAttribute('value')||'';
+  const xt=i.querySelector('maxplaytime')?.getAttribute('value')||'';
+  const w=parseFloat(i.querySelector('averageweight')?.getAttribute('value')||'0');
+  const r=parseFloat(i.querySelector('average')?.getAttribute('value')||'0');
+  return{bggId:id,name,image:img,year:y,
+    players:mn&&mx?(mn===mx?`${mn}P`:`${mn}–${mx}P`):'',
+    playtime:mt?(xt&&xt!==mt?`${mt}–${xt}m`:`${mt}m`):'',
+    complexity:w>0?w.toFixed(1):'',
+    rating:r>0?r.toFixed(1):'',
+    bggUrl:`https://boardgamegeek.com/boardgame/${id}`
+  };
+}
 
 // ── Autocomplete ──
 const acS={};
@@ -405,7 +535,24 @@ async function onSpielInput(tid){
   if(/boardgamegeek\.com\/boardgame\/\d+/.test(val)){dd.classList.remove('open');return}
   if(val.length<2){dd.classList.remove('open');return}
   dd.innerHTML=`<div class="ac-msg"><span class="spinner"></span> Suche …</div>`;dd.classList.add('open');
-  debounce(`s${tid}`,async()=>{try{const res=await bggSearch(val);if(!res.length){dd.innerHTML=`<div class="ac-msg">Keine Ergebnisse</div>`;return}const th=await bggThumbs(res.map(r=>r.bggId));acS[tid]={res,th,hi:-1};renderAcDd(tid)}catch(e){dd.innerHTML=`<div class="ac-msg">⚠ BGG nicht erreichbar</div>`}})
+  debounce(`s${tid}`,async()=>{
+    try{
+      const res=await bggSearch(val);
+      if(!res.length){
+        dd.innerHTML=`<div class="ac-msg" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <span>Kein Ergebnis f\u00fcr \u201e${escHtml(val)}\u201c</span>
+          <button class="btn btn-outline btn-sm" onmousedown="openManualForm(${tid},'${val.replace(/'/g,"\\'")}');closeAc(${tid})">\u2712\ufe0f Manuell hinzuf\u00fcgen</button>
+        </div>`;return;
+      }
+      const th=await bggThumbs(res.map(r=>r.bggId));
+      acS[tid]={res,th,hi:-1};renderAcDd(tid);
+    }catch(e){
+      dd.innerHTML=`<div class="ac-msg" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <span>\u26a0\ufe0f BGG nicht erreichbar</span>
+        <button class="btn btn-outline btn-sm" onmousedown="openManualForm(${tid},'${val.replace(/'/g,"\\'")}');closeAc(${tid})">\u2712\ufe0f Manuell hinzuf\u00fcgen</button>
+      </div>`;
+    }
+  })
 }
 function renderAcDd(tid){const dd=document.getElementById(`dd-${tid}`);const ac=acS[tid];if(!ac)return;dd.innerHTML=ac.res.map((r,i)=>{const t=ac.th[r.bggId];const img=t?`<img class="ac-thumb" src="${proxyImg(t)}" onerror="this.style.display='none'">`:`<div class="ac-thumb-ph">🎲</div>`;return`<div class="ac-item ${i===ac.hi?'hi':''}" onmousedown="selAc(${tid},${i})">${img}<div><div class="ac-name">${escHtml(r.name)}</div><div class="ac-sub">${r.year||'?'} · #${r.bggId}</div></div></div>`}).join('');dd.classList.add('open')}
 async function selAc(tid,idx){const ac=acS[tid];if(!ac)return;document.getElementById(`si-${tid}`).value=ac.res[idx].name;closeAc(tid);await addSpielById(tid,ac.res[idx].bggId)}
@@ -461,21 +608,96 @@ function buildChatMsgs(t){if(!t.chat||!t.chat.length)return`<div class="chat-emp
 
 // ── Spiele ──
 function getVorschlaeger(tid){return document.getElementById(`vs-${tid}`)?.value||currentName||''}
+
 async function addSpiel(tid){
-  const inp=document.getElementById(`si-${tid}`);const val=inp.value.trim();if(!val)return;closeAc(tid);
-  const m=val.match(/boardgamegeek\.com\/boardgame\/(\d+)/);if(m){await addSpielById(tid,m[1]);return}
+  const inp=document.getElementById(`si-${tid}`);
+  const val=inp.value.trim();if(!val)return;closeAc(tid);
+  // Direct BGG URL paste
+  const m=val.match(/boardgamegeek\.com\/boardgame\/(\d+)/);
+  if(m){await addSpielById(tid,m[1]);return}
   setBL(tid,true);
-  try{const res=await bggSearch(val);if(res.length){await addSpielById(tid,res[0].bggId)}else{const t=getT(tid);if(t){t.spiele.push({id:Date.now(),name:val,image:null,bggId:null,bggUrl:null,players:'',year:'',playtime:'',complexity:'',rating:'',votes:{},vorschlaeger:getVorschlaeger(tid)});saveState();inp.value='';rerenderCard(tid);notify(`„${val}" hinzugefügt`)}}}catch(e){notify('BGG nicht erreichbar')}
-  setBL(tid,false)
+  try{
+    const res=await bggSearch(val);
+    if(res.length){
+      await addSpielById(tid,res[0].bggId);
+    } else {
+      // No BGG results → open manual form pre-filled
+      setBL(tid,false);
+      inp.value='';
+      openManualForm(tid,val);
+      return;
+    }
+  }catch(e){
+    // BGG unreachable → offer manual entry
+    setBL(tid,false);
+    openManualForm(tid,val);
+    inp.value='';
+    return;
+  }
+  setBL(tid,false);
 }
+
 async function addSpielById(tid,bggId){
-  const t=getT(tid);if(!t)return;if(t.spiele.find(s=>s.bggId===bggId)){notify('Bereits in der Liste!');return}
+  const t=getT(tid);if(!t)return;
+  if(t.spiele.find(s=>s.bggId===bggId)){notify('Bereits in der Liste!');return}
   setBL(tid,true);
-  try{const d=await bggDetails(bggId);if(d){t.spiele.push({...d,id:Date.now(),votes:{},vorschlaeger:getVorschlaeger(tid)});saveState();const inp=document.getElementById(`si-${tid}`);if(inp)inp.value='';rerenderCard(tid);notify(`„${d.name}" hinzugefügt! 🎮`)}}catch(e){notify('Fehler beim Laden')}
-  setBL(tid,false)
+  try{
+    const d=await bggDetails(bggId);
+    if(d){
+      d.vorschlaeger=getVorschlaeger(tid);
+      t.spiele.push({...d,id:Date.now(),votes:{}});
+      saveState();
+      const inp=document.getElementById(`si-${tid}`);if(inp)inp.value='';
+      rerenderCard(tid);
+      notify(`„${d.name}" hinzugefügt! 🎮`);
+    }
+  }catch(e){
+    setBL(tid,false);
+    openManualForm(tid,'');
+    return;
+  }
+  setBL(tid,false);
 }
+
 function setBL(tid,on){const b=document.getElementById(`sb-${tid}`);if(!b)return;b.innerHTML=on?'<span class="spinner"></span>':'+ Hinzufügen';b.disabled=on}
 function removeSpiel(tid,sid){const t=getT(tid);if(!t)return;t.spiele=t.spiele.filter(s=>s.id!==sid);saveState();rerenderCard(tid)}
+
+// ── Manual Spiel Form ──
+let _manualTid=null;
+function openManualForm(tid, prefill){
+  _manualTid=tid;
+  document.getElementById('mf-name').value=prefill||'';
+  ['mf-year','mf-players','mf-playtime','mf-complexity','mf-image','mf-bggurl'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('manual-modal').style.display='flex';
+  document.getElementById('mf-name').focus();
+}
+function closeManualForm(){
+  document.getElementById('manual-modal').style.display='none';
+  _manualTid=null;
+}
+function saveManualSpiel(){
+  const name=document.getElementById('mf-name').value.trim();
+  if(!name){document.getElementById('mf-name').style.borderColor='var(--red)';return}
+  document.getElementById('mf-name').style.borderColor='';
+  if(_manualTid===null)return;
+  const t=getT(_manualTid);if(!t)return;
+  const vorschlaeger=getVorschlaeger(_manualTid);
+  t.spiele.push({
+    id:Date.now(),
+    name,
+    year:document.getElementById('mf-year').value.trim(),
+    players:document.getElementById('mf-players').value.trim(),
+    playtime:document.getElementById('mf-playtime').value.trim(),
+    complexity:document.getElementById('mf-complexity').value.trim(),
+    image:document.getElementById('mf-image').value.trim()||null,
+    bggUrl:document.getElementById('mf-bggurl').value.trim()||null,
+    bggId:null, rating:'', votes:{}, vorschlaeger
+  });
+  saveState();
+  rerenderCard(_manualTid);
+  closeManualForm();
+  notify(`„${name}" manuell hinzugefügt! 🎲`);
+}
 
 // ── Voting ──
 function voteFromStar(tid,sid,score){
@@ -519,7 +741,7 @@ function buildTerminItem(t, open){
   const ortChip=t.ort?`<span class="chip">📍 ${escHtml(t.ort)}</span>`:'';
   const personChip=`<span class="chip chip-green">👥 ${t.personen.length} dabei</span>`;
   const spieleChip=`<span class="chip">🎮 ${t.spiele.length} Spiele</span>`;
-  const modeChip=t.offen!==false?`<span class="chip" style="color:var(--green);background:var(--green-lt);border-color:var(--green-bd)">🟢 Offen</span>`:`<span class="chip" style="color:var(--gold);background:#fffbeb;border-color:#fde68a">🔒 Nur Ersteller</span>`;
+  const modeChip=t.offen!==false?`<span class="chip" style="color:var(--green);background:var(--green-lt);border-color:var(--green-bd)">🟢 Spielvorschläge</span>`:`<span class="chip" style="color:var(--gold);background:#fffbeb;border-color:#fde68a">📌 Spiel festgelegt</span>`;
   const chatChip=(t.chat||[]).length?`<span class="chip">💬 ${t.chat.length}</span>`:'';
 
   // Persons
@@ -541,8 +763,9 @@ function buildTerminItem(t, open){
         <div class="ac-dd" id="dd-${t.id}"></div>
       </div>
       <button class="btn btn-blue btn-sm" id="sb-${t.id}" onclick="addSpiel(${t.id})">+ Hinzufügen</button>
+      <button class="btn btn-ghost btn-sm" onclick="openManualForm(${t.id},'')" title="Manuell hinzufügen (ohne BGG)">&#9998;</button>
     </div>`
-  :`<p style="font-size:.82rem;color:var(--text-3);margin-bottom:16px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-sm)">🔒 Nur <strong>${escHtml(t.creator)}</strong> kann Spiele hinzufügen.</p>`;
+  :`<p style="font-size:.82rem;color:var(--text-3);margin-bottom:16px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-sm)">📌 <strong>${escHtml(t.creator)}</strong> hat das Spiel festgelegt.</p>`;
 
   return`<div class="termin-item${open?' open':''}" id="termin-${t.id}">
     <div class="termin-header" onclick="toggleTermin(${t.id})">
@@ -574,7 +797,7 @@ function buildTerminItem(t, open){
         <div class="lbl" style="margin-bottom:0">Spiele</div>
       </div>
       ${addSpielSection}
-      ${t.spiele.length?`<div class="lbl" style="margin-top:2px">Abstimmen als</div>${voterSel}`:''}
+      ${t.spiele.length&&t.offen!==false?`<div class="lbl" style="margin-top:2px">Abstimmen als</div>${voterSel}`:''}
       ${spieleHtml}
 
       <div class="divider"></div>
@@ -597,6 +820,7 @@ function buildSpielCard(t,s){
   const phH=`<div class="spiel-img-ph" ${pr?'style="display:none"':''}>🎲</div>`;
   const stars=[1,2,3,4,5].map(i=>`<span class="star" onclick="voteFromStar(${t.id},${s.id},${i})">★</span>`).join('');
   const vH=s.vorschlaeger?`<div class="vorschlag-chip"><div class="av" style="width:13px;height:13px;font-size:.4rem;border-radius:3px;background:${nameColor(s.vorschlaeger)}">${nameInit(s.vorschlaeger)}</div> ${escHtml(s.vorschlaeger)}</div>`:'';
+  const showVoting=t.offen!==false;
   return`<div class="spiel-card${isTop?' top-ranked':''}">
     ${isTop?'<div class="top-badge">🏆 Top Pick</div>':''}
     <button class="spiel-rm" onclick="removeSpiel(${t.id},${s.id})">✕</button>
@@ -606,9 +830,11 @@ function buildSpielCard(t,s){
       <div class="spiel-name">${escHtml(s.name)}</div>
       <div class="spiel-meta">${s.year?`<span>${s.year}</span>`:''}${s.players?`<span>${s.players}</span>`:''}${s.playtime?`<span>${s.playtime}</span>`:''}${s.complexity?`<span>⚙ ${s.complexity}</span>`:''}</div>
       ${vH}
+      ${showVoting?`
       <div class="voting-lbl">Bewertung</div>
       <div class="stars">${stars}</div>
       <div class="votes-row"><span>${vc}×</span><div class="vote-bar-outer"><div class="vote-bar-inner" style="width:${bw}%"></div></div><span>${avg>0?avg.toFixed(1)+'/5':'—'}</span></div>
+      `:''}
     </div>
   </div>`
 }
