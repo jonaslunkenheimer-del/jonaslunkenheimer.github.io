@@ -1520,7 +1520,9 @@ async function removePerson(tid,name){
   const t=getT(tid);if(!t)return;
   if(!_isAdmin && t.creator!==currentName && name!==currentName){notify('Du kannst nur dich selbst entfernen.');return;}
   t.personen=t.personen.filter(p=>p!==name);
+  _allUsers = []; // invalidate cache so removed person reappears in picker
   await saveState();rerenderCard(tid);
+  refreshMemberPicker(tid);
 }
 
 function buildChatMsgs(t){
