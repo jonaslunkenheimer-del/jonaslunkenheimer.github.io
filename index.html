@@ -439,22 +439,65 @@ function renderKnown(){
 }
 
 // ── Auth ──
-function enterWithName(){const v=document.getElementById('name-input').value.trim();if(!v){document.getElementById('name-error').classList.add('show');return}document.getElementById('name-error').classList.remove('show');startApp(v)}
-function startApp(name){
+async function enterWithName(){const v=document.getElementById('name-input').value.trim();if(!v){document.getElementById('name-error').classList.add('show');return}document.getElementById('name-error').classList.remove('show');startApp(v)}
+async function startApp(name){
   currentName=name;saveKnown(name);localStorage.setItem(SK.cur,name);
   document.getElementById('name-screen').style.display='none';
   document.getElementById('app-screen').style.display='block';
   document.getElementById('new-creator').value=name;
   setAv(document.getElementById('hdr-av'),name);
   document.getElementById('hdr-name').textContent=name;
-  loadState();renderTermine();
+  try{await loadState();}catch(e){console.warn('loadState error:',e);}
+  renderTermine();
+  startPolling();
 }
 function switchUser(){currentName='';localStorage.removeItem(SK.cur);document.getElementById('app-screen').style.display='none';document.getElementById('name-screen').style.display='flex';document.getElementById('name-input').value='';renderKnown()}
 
-// ── State ──
+// ── State (shared across all users) ──
 let state={termine:[],nextId:1};
-function loadState(){try{const s=localStorage.getItem(SK.data);if(s)state=JSON.parse(s)}catch(e){}}
-function saveState(){try{localStorage.setItem(SK.data,JSON.stringify(state))}catch(e){}}
+const SHARED_KEY='diemeeples-state-v1';
+
+async function loadState(){
+  try{
+    if(typeof window.storage!=='undefined'&&window.storage){
+      const r=await window.storage.get(SHARED_KEY,true);
+      if(r&&r.value){state=JSON.parse(r.value);return;}
+    }
+  }catch(e){console.warn('shared storage read failed:',e);}
+  // fallback: localStorage
+  try{const s=localStorage.getItem(SK.data);if(s)state=JSON.parse(s);}catch(e){}
+}
+
+async function saveState(){
+  let savedShared=false;
+  try{
+    if(typeof window.storage!=='undefined'&&window.storage){
+      await window.storage.set(SHARED_KEY,JSON.stringify(state),true);
+      savedShared=true;
+    }
+  }catch(e){console.warn('shared storage write failed:',e);}
+  // always also save locally as backup
+  try{localStorage.setItem(SK.data,JSON.stringify(state));}catch(e){}
+}
+
+// Poll every 8s so users see each other’s changes
+let _pollInterval=null;
+async function startPolling(){
+  if(_pollInterval)return;
+  _pollInterval=setInterval(async()=>{
+    if(typeof window.storage==='undefined'||!window.storage)return;
+    try{
+      const r=await window.storage.get(SHARED_KEY,true);
+      if(r&&r.value){
+        const fresh=JSON.parse(r.value);
+        if(JSON.stringify(fresh)!==JSON.stringify(state)){
+          state=fresh;
+          renderTermine();
+        }
+      }
+    }catch(e){}
+  },8000);
+}
 
 // ── Tabs ──
 function showTab(tab,btn){
@@ -470,14 +513,21 @@ function showTab(tab,btn){
 async function callClaude(prompt, maxTokens=800){
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       messages: [{role:'user', content: prompt}]
     })
   });
-  if(!resp.ok) throw new Error(`Claude API ${resp.status}`);
+  if(!resp.ok){
+    const err=await resp.text().catch(()=>'');
+    throw new Error(`API ${resp.status}: ${err.slice(0,100)}`);
+  }
   const data = await resp.json();
   const text = data.content.map(b=>b.text||'').join('');
   return text.replace(/^```(?:json)?\n?/,'').replace(/\n?```$/,'').trim();
@@ -533,7 +583,7 @@ async function loadFromBggUrl(bggId, gameName){
 
 // ── Spiele ──
 function getVorschlaeger(tid){return document.getElementById(`vs-${tid}`)?.value||currentName||''}
-function removeSpiel(tid,sid){const t=getT(tid);if(!t)return;t.spiele=t.spiele.filter(s=>s.id!==sid);saveState();rerenderCard(tid)}
+async function removeSpiel(tid,sid){const t=getT(tid);if(!t)return;t.spiele=t.spiele.filter(s=>s.id!==sid);await saveState();rerenderCard(tid)}
 
 // ── Unified Add-Spiel Modal ──
 let _addTid=null;
@@ -579,7 +629,7 @@ function switchAddTab(tab){
 }
 
 // ── Tab: Suche ──
-function onAddSearch(){
+async function onAddSearch(){
   const val=document.getElementById('as-query').value.trim();
   const dd=document.getElementById('as-dd');
   const errEl=document.getElementById('as-error');
@@ -631,8 +681,8 @@ async function selectAsResult(idx){
   const t=getT(tid);if(!t)return;
   d.vorschlaeger=getVorschlaeger(tid);
   t.spiele.push({...d,id:Date.now(),votes:{}});
-  saveState();rerenderCard(tid);
-  notify(`\u201e${d.name}\u201c hinzugef\u00fcgt! \U0001f3ae`);
+  await saveState();rerenderCard(tid);
+  notify(`\u201e${d.name}\u201c hinzugef\u00fcgt! 🎮`);
 }
 
 function onAddSearchKey(e){
@@ -665,8 +715,8 @@ async function loadFromLink(){
     const t=getT(tid);if(!t)return;
     d.vorschlaeger=getVorschlaeger(tid);
     t.spiele.push({...d,id:Date.now(),votes:{}});
-    saveState();rerenderCard(tid);
-    notify(`\u201e${d.name}\u201c hinzugef\u00fcgt! \U0001f3ae`);
+    await saveState();rerenderCard(tid);
+    notify(`\u201e${d.name}\u201c hinzugef\u00fcgt! 🎮`);
   }catch(e){
     loadEl.style.display='none';subBtn.disabled=false;
     errEl.textContent='Laden fehlgeschlagen. Pr\u00fcfe den Link oder nutze die manuelle Eingabe.';
@@ -675,7 +725,7 @@ async function loadFromLink(){
 }
 
 // ── Tab: Manuell ──
-function saveManualSpiel(){
+async function saveManualSpiel(){
   const name=document.getElementById('mf-name').value.trim();
   if(!name){document.getElementById('mf-name').style.borderColor='var(--red)';return}
   document.getElementById('mf-name').style.borderColor='';
@@ -690,14 +740,14 @@ function saveManualSpiel(){
     bggUrl:document.getElementById('mf-bggurl').value.trim()||null,
     bggId:null, rating:'', votes:{}, vorschlaeger
   });
-  saveState();rerenderCard(_addTid);closeAddModal();
+  await saveState();rerenderCard(_addTid);closeAddModal();
   notify(`„${name}" manuell hinzugefügt! 🎲`);
 }
 // ── Voting ──
-function voteFromStar(tid,sid,score){
+async function voteFromStar(tid,sid,score){
   const t=getT(tid);let voter=currentName&&t?.personen.includes(currentName)?currentName:document.getElementById(`vsel-${tid}`)?.value||'';
   if(!voter){notify('Bitte Person auswählen!');return}
-  const s=t?.spiele.find(s=>s.id===sid);if(!s)return;if(!s.votes)s.votes={};s.votes[voter]=score;saveState();rerenderCard(tid);notify(`${voter}: ${'★'.repeat(score)}`)
+  const s=t?.spiele.find(s=>s.id===sid);if(!s)return;if(!s.votes)s.votes={};s.votes[voter]=score;await saveState();rerenderCard(tid);notify(`${voter}: ${'★'.repeat(score)}`)
 }
 function avgScore(s){if(!s.votes||!Object.keys(s.votes).length)return 0;const v=Object.values(s.votes);return v.reduce((a,b)=>a+b,0)/v.length}
 
@@ -722,7 +772,7 @@ function rerenderCard(tid){
 // ── Termine CRUD ──
 function getT(id){return state.termine.find(t=>t.id===id)}
 
-function createTermin(){
+async function createTermin(){
   const title=document.getElementById('new-title').value.trim();
   if(!title){document.getElementById('new-title').style.borderColor='var(--red)';return}
   document.getElementById('new-title').style.borderColor='';
@@ -732,38 +782,38 @@ function createTermin(){
   const offen=document.getElementById('new-offen')?.checked!==false;
   const t={id:state.nextId++,title,date,ort,creator,offen,personen:creator?[creator]:[],spiele:[],chat:[]};
   state.termine.unshift(t);
-  saveState();
+  await saveState();
   ['new-title','new-ort'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   const d=document.getElementById('new-date');if(d)d.value='';
   renderTermine();
   notify('Termin erstellt! 🎉');
 }
 
-function deleteTermin(tid){
+async function deleteTermin(tid){
   if(!confirm('Termin wirklich löschen?'))return;
   state.termine=state.termine.filter(t=>t.id!==tid);
-  saveState();renderTermine();
+  await saveState();renderTermine();
 }
 
-function addSelf(tid){
+async function addSelf(tid){
   const t=getT(tid);if(!t||!currentName)return;
   if(!t.personen.includes(currentName))t.personen.push(currentName);
-  saveState();rerenderCard(tid);
+  await saveState();rerenderCard(tid);
 }
 
-function addPerson(tid){
+async function addPerson(tid){
   const inp=document.getElementById(`pi-${tid}`);
   const name=inp?.value.trim();if(!name)return;
   const t=getT(tid);if(!t)return;
   if(!t.personen.includes(name))t.personen.push(name);
   inp.value='';
-  saveState();rerenderCard(tid);
+  await saveState();rerenderCard(tid);
 }
 
-function removePerson(tid,name){
+async function removePerson(tid,name){
   const t=getT(tid);if(!t)return;
   t.personen=t.personen.filter(p=>p!==name);
-  saveState();rerenderCard(tid);
+  await saveState();rerenderCard(tid);
 }
 
 function buildChatMsgs(t){
@@ -777,14 +827,14 @@ function buildChatMsgs(t){
   }).join('');
 }
 
-function sendChat(tid){
+async function sendChat(tid){
   const inp=document.getElementById(`ci-${tid}`);
   const text=inp?.value.trim();if(!text)return;
   const t=getT(tid);if(!t)return;
   if(!t.chat)t.chat=[];
   t.chat.push({id:Date.now(),author:currentName||'?',text,ts:Date.now()});
   inp.value='';
-  saveState();
+  await saveState();
   const box=document.getElementById(`cb-${tid}`);
   if(box){box.innerHTML=buildChatMsgs(t);box.scrollTop=box.scrollHeight}
 }
