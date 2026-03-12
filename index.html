@@ -474,8 +474,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:up .2s ease">
     <div style="background:linear-gradient(135deg,var(--blue),#6a9af8);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1">
       <div>
-        <div style="font-size:1.1rem;font-weight:800;color:#fff">🛒 Spiel inserieren</div>
-        <div style="font-size:.75rem;color:rgba(255,255,255,.75);margin-top:2px">Biete dein Spiel der Gruppe an</div>
+        <div id="inserat-modal-title" style="font-size:1.1rem;font-weight:800;color:#fff">🛒 Spiel inserieren</div>
+        <div id="inserat-modal-sub" style="font-size:.75rem;color:rgba(255,255,255,.75);margin-top:2px">Biete dein Spiel der Gruppe an</div>
       </div>
       <button onclick="closeInseratModal()" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
@@ -497,7 +497,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div id="markt-error" style="display:none;color:var(--red);font-size:.82rem;margin-bottom:10px"></div>
       <div style="display:flex;gap:10px">
         <button class="btn btn-ghost" onclick="closeInseratModal()" style="flex:1">Abbrechen</button>
-        <button class="btn btn-blue" onclick="createInserat()" style="flex:2">📢 Inserat erstellen</button>
+        <button class="btn btn-blue" id="inserat-submit-btn" onclick="submitInserat()" style="flex:2">📢 Inserat erstellen</button>
       </div>
     </div>
   </div>
@@ -1564,7 +1564,7 @@ async function renderMarkt(reload){
     var canDel=isAdmin||m.seller===currentName; var isSeller=m.seller===currentName;
     var imgs=m.images||[];
     var imgHtml=imgs.length?"<div style='position:relative;height:160px;overflow:hidden;cursor:zoom-in' onclick='openLightbox(\""+h(imgs[0])+"\")'>"
-      +"<img src='"+h(imgs[0])+"' style='width:100%;height:100%;object-fit:cover'>"
+      +"<img src='"+proxyImg(imgs[0])+"' style='width:100%;height:100%;object-fit:cover' onerror='this.src=\""+h(imgs[0])+"\"'>"
       +(imgs.length>1?"<div style='position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);color:#fff;font-size:.65rem;padding:2px 7px;border-radius:10px'>+"+(imgs.length-1)+" Fotos</div>":"")
       +"</div>":"";
     var interessenten=m.interesse||[];
@@ -1584,22 +1584,45 @@ async function renderMarkt(reload){
       +(m.bgg?"<a href='"+h(m.bgg)+"' target='_blank' class='btn btn-outline btn-sm'>BGG</a>":"")
       +"<button class='btn btn-ghost btn-sm' onclick='openMarktChat("+m.id+")'>&#128172; Chat</button>"
       +(!m.sold&&isSeller?"<button class='btn btn-sm' style='background:var(--green-lt);color:var(--green);border-color:var(--green-bd)' onclick='markSold("+m.id+")'>&#10003; Verkauft</button>":"")
+      +(!m.sold&&(isSeller||isAdmin)?"<button class='btn btn-outline btn-sm' onclick='openEditInseratModal("+m.id+")'>&#9999;&#65039; Bearbeiten</button>":"")
       +(canDel?"<button class='btn btn-sm' style='background:#fef2f2;color:var(--red);border:1px solid #fca5a5' onclick='deleteInserat("+m.id+")'>&#128465;</button>":"")
       +"</div>"
-      +(imgs.length>1?"<div style='display:flex;gap:4px;margin-top:8px;flex-wrap:wrap'>"+imgs.slice(1).map(function(img){ return "<img src='"+h(img)+"' style='width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--border)' onclick='openLightbox(\""+h(img)+"\")'>";}).join("")+"</div>":"")
+      +(imgs.length>1?"<div style='display:flex;gap:4px;margin-top:8px;flex-wrap:wrap'>"+imgs.slice(1).map(function(img){ return "<img src='"+proxyImg(img)+"' style='width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--border)' onerror='this.src=\""+h(img)+"\"' onclick='openLightbox(\""+h(img)+"\")'>";}).join("")+"</div>":"")
       +"</div></div>";
   }).join("");
 }
 
+var editInseratId=null;
+
 function openInseratModal(){
+  editInseratId=null;
   mImgs=[];
   ["markt-titel","markt-preis","markt-desc","markt-bgg","markt-img-url"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   document.getElementById("markt-img-preview-wrap").innerHTML="";
   document.getElementById("markt-error").style.display="none";
+  document.getElementById("inserat-modal-title").textContent="\uD83D\uDED2 Spiel inserieren";
+  document.getElementById("inserat-submit-btn").textContent="\uD83D\uDCE2 Inserat erstellen";
   document.getElementById("inserat-modal").style.display="flex";
   setTimeout(function(){ document.getElementById("markt-titel").focus(); },50);
 }
-function closeInseratModal(){ document.getElementById("inserat-modal").style.display="none"; }
+function openEditInseratModal(id){
+  var m=mData.find(function(x){ return x.id===id; }); if(!m) return;
+  if(!isAdmin&&m.seller!==currentName){ toast("Keine Berechtigung."); return; }
+  editInseratId=id;
+  mImgs=(m.images||[]).slice();
+  document.getElementById("markt-titel").value=m.titel||"";
+  document.getElementById("markt-preis").value=m.preis||"";
+  document.getElementById("markt-desc").value=m.desc||"";
+  document.getElementById("markt-bgg").value=m.bgg||"";
+  document.getElementById("markt-img-url").value="";
+  document.getElementById("markt-error").style.display="none";
+  document.getElementById("inserat-modal-title").textContent="\u270F\uFE0F Inserat bearbeiten";
+  document.getElementById("inserat-submit-btn").textContent="\u2713 Speichern";
+  renderMarktImgPreviews();
+  document.getElementById("inserat-modal").style.display="flex";
+  setTimeout(function(){ document.getElementById("markt-titel").focus(); },50);
+}
+function closeInseratModal(){ document.getElementById("inserat-modal").style.display="none"; editInseratId=null; }
 function addMarktImg(){
   var inp=document.getElementById("markt-img-url"); var url=inp.value.trim();
   var errEl=document.getElementById("markt-error");
@@ -1611,24 +1634,38 @@ function renderMarktImgPreviews(){
   var wrap=document.getElementById("markt-img-preview-wrap"); if(!wrap) return;
   wrap.innerHTML=mImgs.map(function(url,i){
     return "<div style='position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:1px solid var(--border)'>"
-      +"<img src='"+h(url)+"' style='width:100%;height:100%;object-fit:cover'>"
+      +"<img src='"+proxyImg(url)+"' onerror='this.src=\""+h(url)+"\"' style='width:100%;height:100%;object-fit:cover'>"
       +"<button onclick='removeMarktImg("+i+")' style='position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);border:none;color:#fff;font-size:.6rem;cursor:pointer'>&#x2715;</button>"
       +"</div>";
   }).join("");
 }
 async function createInserat(){
-  var titel=document.getElementById("markt-titel").value.trim();
-  var preis=parseFloat(document.getElementById("markt-preis").value);
   var errEl=document.getElementById("markt-error"); errEl.style.display="none";
   if(!titel){ errEl.textContent="Spielname erforderlich."; errEl.style.display="block"; return; }
   if(isNaN(preis)||preis<0){ errEl.textContent="G\u00fcltigen Preis eingeben."; errEl.style.display="block"; return; }
-  var id=Date.now();
-  mData.unshift({id:id,titel:titel,preis:preis,desc:document.getElementById("markt-desc").value.trim(),images:mImgs.slice(),bgg:document.getElementById("markt-bgg").value.trim()||null,seller:currentName,ts:new Date().toISOString(),chat:[],interesse:[],sold:false});
-  closeInseratModal();
-  renderMarkt(false);
-  toast("Inserat erstellt \u2713");
-  await saveMarkt();
+  if(editInseratId!==null){
+    // Edit mode
+    var m=mData.find(function(x){ return x.id===editInseratId; }); if(!m) return;
+    m.titel=titel; m.preis=preis;
+    m.desc=document.getElementById("markt-desc").value.trim();
+    m.bgg=document.getElementById("markt-bgg").value.trim()||null;
+    m.images=mImgs.slice();
+    closeInseratModal();
+    renderMarkt(false);
+    toast("Inserat gespeichert \u2713");
+    await saveMarkt();
+  } else {
+    // Create mode
+    var id=Date.now();
+    mData.unshift({id:id,titel:titel,preis:preis,desc:document.getElementById("markt-desc").value.trim(),images:mImgs.slice(),bgg:document.getElementById("markt-bgg").value.trim()||null,seller:currentName,ts:new Date().toISOString(),chat:[],interesse:[],sold:false});
+    closeInseratModal();
+    renderMarkt(false);
+    toast("Inserat erstellt \u2713");
+    await saveMarkt();
+  }
 }
+function submitInserat(){ createInserat(); }
+
 async function toggleInteresse(id){
   var m=mData.find(function(x){ return x.id===id; }); if(!m) return;
   if(!m.interesse) m.interesse=[];
