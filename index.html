@@ -880,29 +880,17 @@ function toggleTermin(tid){
 }
 function updateSpielSection(tid){
   var t=getT(tid); if(!t) return;
-  // Update spiele grid directly
   var sortedS=[].concat(t.spiele).sort(function(a,b){ return avg(b)-avg(a); });
   var spieleHtml=t.spiele.length
     ? "<div class='spiele-grid'>"+sortedS.map(function(s){ return buildSpielCard(t,s); }).join("")+"</div>"
     : "<div class='empty' style='padding:20px'><div class='empty-icon' style='font-size:1.5rem'>&#127918;</div><p>Noch keine Spiele.</p></div>";
-  // Find the spiele container - it comes after the spiele lbl div
+  var wrap=document.getElementById("spiele-wrap-"+tid);
+  if(wrap){ wrap.innerHTML=spieleHtml; }
+  // Update chips count
   var card=document.getElementById("termin-"+tid); if(!card) return;
-  // Replace spiele-grid or empty div inside the body
-  var body=card.querySelector(".termin-body"); if(!body) return;
-  var tmp=document.createElement("div"); tmp.innerHTML=spieleHtml;
-  // Find existing spiele section (grid or empty) - it's right after the add-section
-  var existingGrid=body.querySelector(".spiele-grid");
-  var existingEmpty=body.querySelector(".empty");
-  var target=existingGrid||existingEmpty;
-  if(target){ target.outerHTML=spieleHtml; }
-  // Also update the chips in the header
-  var chipSpiele=card.querySelector(".chips-row");
-  if(chipSpiele){
-    // update spiele count chip
-    chipSpiele.querySelectorAll(".chip").forEach(function(c){
-      if(c.innerHTML.indexOf("&#127918;")!==-1) c.innerHTML="&#127918; "+t.spiele.length+" Spiele";
-    });
-  }
+  card.querySelectorAll(".chip").forEach(function(c){
+    if(c.innerHTML.indexOf("&#127918;")!==-1) c.innerHTML="&#127918; "+t.spiele.length+" Spiele";
+  });
 }
 
 function rerenderCard(tid){
@@ -1058,7 +1046,7 @@ function buildTerminCard(t, open){
     +"<hr class='divider'>"
     +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px'>"
     +"<div class='lbl' style='margin-bottom:0'>Spiele</div></div>"
-    +addSection+spieleHtml
+    +addSection+"<div id='spiele-wrap-"+t.id+"'>"+spieleHtml+"</div>"
     +"<hr class='divider'>"
     +"<div class='lbl'>&#128172; Chat</div>"
     +"<div class='chat-box' id='cb-"+t.id+"'>"+chatHtml+"</div>"
@@ -1314,8 +1302,9 @@ async function confirmAddSpiel(){
   }
   t.spiele.push(spiel);
   window._pendingSpiel=null;
+  var savedTid=addTid;
   closeAddModal();
-  updateSpielSection(addTid);
+  updateSpielSection(savedTid);
   saveState();
   toast("Spiel hinzugef\u00fcgt \u2713");
 }
@@ -1491,25 +1480,25 @@ async function createInserat(){
   closeInseratModal();
   renderMarkt(false);
   toast("Inserat erstellt \u2713");
-  saveMarkt();
+  await saveMarkt();
 }
 async function toggleInteresse(id){
   var m=mData.find(function(x){ return x.id===id; }); if(!m) return;
   if(!m.interesse) m.interesse=[];
   if(m.interesse.includes(currentName)) m.interesse=m.interesse.filter(function(n){ return n!==currentName; });
   else m.interesse.push(currentName);
-  renderMarkt(false); saveMarkt();
+  renderMarkt(false); await saveMarkt();
 }
 async function markSold(id){
   var m=mData.find(function(x){ return x.id===id; }); if(!m) return;
-  m.sold=true; renderMarkt(false); toast("Als verkauft markiert \u2713"); saveMarkt();
+  m.sold=true; renderMarkt(false); toast("Als verkauft markiert \u2713"); await saveMarkt();
 }
 async function deleteInserat(id){
   var m=mData.find(function(x){ return x.id===id; });
   var name=m?m.titel:"dieses Inserat";
   showConfirm("Inserat l\u00f6schen?","\""+name+"\" wirklich entfernen?",async function(){
     mData=mData.filter(function(x){ return x.id!==id; });
-    renderMarkt(false); toast("Gel\u00f6scht."); saveMarkt();
+    renderMarkt(false); toast("Gel\u00f6scht."); await saveMarkt();
   });
 }
 function openLightbox(src){ document.getElementById("lb-img").src=src; document.getElementById("lightbox").style.display="flex"; }
