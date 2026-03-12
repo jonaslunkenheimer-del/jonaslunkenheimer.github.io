@@ -334,7 +334,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
           </div>
         </div>
         <button class="btn btn-outline btn-sm" style="width:100%;margin-top:10px" onclick="saveAvatarColor()">🎨 Farbe speichern</button>
-      </div>✓ Name speichern</button>
+      </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
         <div class="form-field" style="margin-bottom:8px"><label>Neues Passwort</label><input class="input-field" id="profil-pw" type="password" placeholder="Neues Passwort"></div>
         <button class="btn btn-outline btn-sm" style="width:100%;" onclick="savePassword()">🔑 Passwort ändern</button>
@@ -1039,7 +1039,7 @@ function buildTerminCard(t, open){
 
   // Personen
   var persHtml=t.personen.map(function(p){
-    var rmBtn=(canManage||p===currentName)?"<span class='rm' onclick='removePerson("+t.id+",\""+p.replace(/"/g,"&quot;")+"\")'>&#215;</span>":"";
+    var rmBtn=(isAdmin||p===currentName)?"<span class='rm' onclick='removePerson("+t.id+",\""+p.replace(/"/g,"&quot;")+"\")'>&#215;</span>":"";
     return "<span class='person-chip'><div class='av av-sm' style='background:"+nameColor(p)+"'>"+nameInit(p)+"</div><span>"+h(p)+"</span>"+rmBtn+"</span>";
   }).join("");
 
@@ -1206,7 +1206,7 @@ async function addPerson(tid){
 }
 async function removePerson(tid,name){
   var t=getT(tid); if(!t) return;
-  if(!isAdmin&&t.creator!==currentName&&name!==currentName){ toast("Keine Berechtigung."); return; }
+  if(!isAdmin&&name!==currentName){ toast("Du kannst nur dich selbst entfernen."); return; }
   t.personen=t.personen.filter(function(p){ return p!==name; });
   rerenderCard(tid); saveState();
 }
