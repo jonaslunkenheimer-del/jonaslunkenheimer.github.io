@@ -443,11 +443,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
         </div>
         <div class="form-field" style="margin-bottom:16px">
           <label>Foto hochladen</label>
-          <div id="markt-drop" onclick="document.getElementById('markt-file').click()" style="border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;background:var(--bg);transition:border-color .15s" onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'">
+          <label for="markt-file" id="markt-drop" style="border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;background:var(--bg);transition:border-color .15s;display:block" onmouseenter="this.style.borderColor='var(--blue)'" onmouseleave="this.style.borderColor='var(--border)'">
             <div id="markt-drop-icon" style="font-size:2rem;margin-bottom:6px">📷</div>
             <div id="markt-drop-text" style="font-size:.82rem;color:var(--text-3)">Klicken zum Auswählen</div>
             <img id="markt-preview" style="display:none;max-height:160px;max-width:100%;border-radius:8px;margin-top:12px;object-fit:contain">
-          </div>
+          </label>
           <input type="file" id="markt-file" accept="image/*" style="display:none" onchange="previewMarktImg(this)">
         </div>
         <div id="markt-error" style="display:none;color:var(--red);font-size:.82rem;margin-bottom:10px"></div>
@@ -1967,8 +1967,8 @@ let _marktImgData = ''; // store base64 here
 function previewMarktImg(input){
   const file = input.files[0];
   if(!file) return;
-  if(file.size > 800*1024){
-    document.getElementById('markt-error').textContent='Bild max. 800 KB.';
+  if(file.size > 2*1024*1024){
+    document.getElementById('markt-error').textContent='Bild max. 2 MB.';
     document.getElementById('markt-error').style.display='block';
     input.value=''; return;
   }
