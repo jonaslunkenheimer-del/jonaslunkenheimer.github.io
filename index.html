@@ -1954,11 +1954,15 @@ async function loadMarkt(){
 }
 
 async function saveMarkt(){
-  await fetch(SB_URL+'/rest/v1/'+SB_MARKT_TABLE+'?id=eq.1',{
+  const r = await fetch(SB_URL+'/rest/v1/'+SB_MARKT_TABLE+'?id=eq.1',{
     method:'PATCH',
     headers:{'apikey':SB_ANON,'Authorization':'Bearer '+(_sbSession?.access_token||SB_ANON),'Content-Type':'application/json','Prefer':'return=minimal'},
     body:JSON.stringify({data:_marktData})
   });
+  if(!r.ok){
+    const txt = await r.text().catch(()=>'');
+    throw new Error('Supabase '+r.status+': '+txt.slice(0,120));
+  }
 }
 
 // ── Image: convert to base64 ──
@@ -1993,25 +1997,35 @@ async function createInserat(){
   const desc  = document.getElementById('markt-desc').value.trim();
   const prev  = document.getElementById('markt-preview');
   const errEl = document.getElementById('markt-error');
+  const btn   = document.querySelector('[onclick="createInserat()"]');
   errEl.style.display='none';
   if(!titel){ errEl.textContent='Bitte einen Spielnamen eingeben.'; errEl.style.display='block'; return; }
   if(!preis){ errEl.textContent='Bitte einen Preis eingeben.'; errEl.style.display='block'; return; }
   if(!_marktImgData){ errEl.textContent='Bitte ein Foto hochladen.'; errEl.style.display='block'; return; }
-  const id = Date.now();
-  _marktData.push({ id, titel, preis: parseFloat(preis), desc, image: _marktImgData, seller: currentName, ts: new Date().toISOString(), chat:[], sold:false });
-  await saveMarkt();
-  // Reset form
-  document.getElementById('markt-titel').value='';
-  document.getElementById('markt-preis').value='';
-  document.getElementById('markt-desc').value='';
-  prev.src=''; prev.style.display='none';
-  document.getElementById('markt-drop-icon').style.display='';
-  document.getElementById('markt-drop-text').style.display='';
-  document.getElementById('markt-drop').style.borderColor='';
-  document.getElementById('markt-file').value='';
-  _marktImgData = '';
-  renderMarkt();
-  notify('Inserat erstellt ✓');
+  btn.textContent='⏳ Wird gespeichert…'; btn.disabled=true;
+  try{
+    const id = Date.now();
+    _marktData.push({ id, titel, preis: parseFloat(preis), desc, image: _marktImgData, seller: currentName, ts: new Date().toISOString(), chat:[], sold:false });
+    await saveMarkt();
+    // Reset form
+    document.getElementById('markt-titel').value='';
+    document.getElementById('markt-preis').value='';
+    document.getElementById('markt-desc').value='';
+    prev.src=''; prev.style.display='none';
+    document.getElementById('markt-drop-icon').style.display='';
+    document.getElementById('markt-drop-text').style.display='';
+    document.getElementById('markt-drop').style.borderColor='';
+    document.getElementById('markt-file').value='';
+    _marktImgData = '';
+    await renderMarkt();
+    notify('Inserat erstellt ✓');
+  } catch(e){
+    console.error('createInserat error:', e);
+    errEl.textContent = 'Fehler beim Speichern: ' + (e.message||e);
+    errEl.style.display='block';
+  } finally {
+    btn.textContent='📢 Inserat erstellen'; btn.disabled=false;
+  }
 }
 
 // ── Delete inserat ──
