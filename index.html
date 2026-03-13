@@ -208,6 +208,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <label class="name-label" for="login-pw" style="margin-top:10px">Passwort</label>
       <input class="name-input" id="login-pw" name="password" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.keyCode===13){event.preventDefault();doLogin();}">
       <div class="name-error" id="name-error"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;cursor:pointer;font-size:.82rem;color:var(--text-2);font-weight:500;user-select:none">
+        <input type="checkbox" id="login-remember" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer">
+        Angemeldet bleiben <span style="color:var(--text-3);font-size:.75rem">(24 Std.)</span>
+      </label>
       <button type="submit" class="btn-name" id="login-btn">Einloggen →</button>
     </form>
     <div style="margin-top:14px;font-size:.75rem;color:var(--text-3);text-align:center">Noch kein Account? Wende dich an den Admin.</div>
@@ -653,6 +657,57 @@ function nameInit(n){ return n.split(" ").map(function(w){ return w[0]||""; }).j
 function setAv(el,name){ if(!el) return; el.style.background=nameColor(name); el.textContent=nameInit(name); }
 
 // ── Login ──
+// ── Session Persistence ──
+var SESSION_KEY="meeples_session";
+var SESSION_TTL=24*60*60*1000; // 24h in ms
+
+function saveSession(sess, name){
+  try{
+    localStorage.setItem(SESSION_KEY,JSON.stringify({sess:sess,name:name,ts:Date.now()}));
+  }catch(e){}
+}
+function clearSession(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+}
+function loadSavedSession(){
+  try{
+    var raw=localStorage.getItem(SESSION_KEY);
+    if(!raw) return null;
+    var obj=JSON.parse(raw);
+    if(!obj||!obj.sess||!obj.ts) return null;
+    if(Date.now()-obj.ts>SESSION_TTL){ clearSession(); return null; }
+    return obj;
+  }catch(e){ return null; }
+}
+
+// ── Auto-Login on page load ──
+window.addEventListener("load",async function(){
+  var saved=loadSavedSession();
+  if(!saved) return;
+  session=saved.sess;
+  var meta=session.user&&session.user.user_metadata;
+  isAdmin=(session.user&&session.user.email===ADMIN)||(meta&&meta.is_admin===true);
+  var name=saved.name||(meta&&meta.display_name)||"";
+  if(!name) return;
+  // Refresh session TTL silently
+  try{
+    var r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","apikey":SB_ANON},
+      body:JSON.stringify({refresh_token:session.refresh_token||""})
+    });
+    if(r.ok){
+      var d=await r.json();
+      session=d;
+      isAdmin=(d.user&&d.user.email===ADMIN)||((d.user&&d.user.user_metadata&&d.user.user_metadata.is_admin)===true);
+      var refreshedMeta=d.user&&d.user.user_metadata;
+      name=(refreshedMeta&&refreshedMeta.display_name)||name;
+      saveSession(session,name);
+    }
+  }catch(e){}
+  await startApp(name);
+});
+
 async function doLogin(){
   var inp = document.getElementById("login-email").value.trim();
   var pw  = document.getElementById("login-pw").value;
@@ -670,6 +725,8 @@ async function doLogin(){
     var meta = d.user && d.user.user_metadata;
     isAdmin = (d.user && d.user.email===ADMIN) || (meta && meta.is_admin===true);
     var name = (meta && meta.display_name) || inp;
+    var remember = document.getElementById("login-remember");
+    if(remember && remember.checked) saveSession(session, name);
     await startApp(name);
   } catch(e){
     err.textContent=e.message||"Verbindungsfehler."; err.style.display="block";
@@ -695,6 +752,7 @@ async function startApp(name){
 
 async function switchUser(){
   if(session){ try{ await fetch(SB_URL+"/auth/v1/logout",{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_ANON,"Authorization":"Bearer "+(session.access_token||"")}}); }catch(e){} }
+  clearSession();
   session=null; isAdmin=false; currentName=""; state={termine:[],nextId:1}; mData=[];
   document.getElementById("app-screen").style.display="none";
   document.getElementById("name-screen").style.display="flex";
