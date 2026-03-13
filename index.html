@@ -450,9 +450,17 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
         <div><div style="font-weight:600;font-size:.88rem">👥 Teilnehmerlimit</div></div>
         <label class="toggle-wrap"><input type="checkbox" id="edit-limit-on" onchange="document.getElementById('edit-limit-wrap').style.display=this.checked?'block':'none'"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
       </div>
-      <div id="edit-limit-wrap" style="display:none;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-sm);margin-bottom:14px">
+      <div id="edit-limit-wrap" style="display:none;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-sm);margin-bottom:10px">
         <label style="font-size:.78rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Maximale Teilnehmerzahl</label>
         <input class="input-field" id="edit-limit-val" type="number" min="1" max="100" placeholder="z.B. 8">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px">
+        <div><div style="font-weight:600;font-size:.88rem">👍 Spieleabstimmung</div></div>
+        <label class="toggle-wrap"><input type="checkbox" id="edit-vote-on" onchange="if(this.checked){var d=document.getElementById('edit-dice-on');if(d)d.checked=false;}"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:18px">
+        <div><div style="font-weight:600;font-size:.88rem">🎲 Spiel auswürfeln</div></div>
+        <label class="toggle-wrap"><input type="checkbox" id="edit-dice-on" onchange="if(this.checked){var v=document.getElementById('edit-vote-on');if(v)v.checked=false;}"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn btn-ghost" onclick="closeEditModal()" style="flex:1">Abbrechen</button>
@@ -494,6 +502,14 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div id="new-limit-wrap" style="display:none;padding:12px 15px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-sm);margin-bottom:10px">
         <label style="font-size:.78rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Maximale Teilnehmerzahl</label>
         <input class="input-field" id="new-limit-val" type="number" min="1" max="100" placeholder="z.B. 8">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px">
+        <div><div style="font-weight:600;font-size:.88rem">👍 Spieleabstimmung</div><div style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3)">Teilnehmer können für Spiele abstimmen</div></div>
+        <label class="toggle-wrap"><input type="checkbox" id="new-vote-on" onchange="if(this.checked){var d=document.getElementById('new-dice-on');if(d)d.checked=false;}"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:22px">
+        <div><div style="font-weight:600;font-size:.88rem">🎲 Spiel auswürfeln</div><div style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--text-3)">Zufälliges Spiel per Würfelbutton wählen</div></div>
+        <label class="toggle-wrap"><input type="checkbox" id="new-dice-on" onchange="if(this.checked){var v=document.getElementById('new-vote-on');if(v)v.checked=false;}"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn btn-ghost" onclick="closeNewTerminModal()" style="flex:1">Abbrechen</button>
@@ -749,8 +765,12 @@ async function loadState(){
   if(!state.termine) state={termine:[],nextId:1,userColors:{}};
   if(!state.userColors) state.userColors={};
 }
+var saveLock=false;
 async function saveState(){
-  await fetch(SB_URL+"/rest/v1/"+SB_TABLE,{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({id:1,data:state})});
+  saveLock=true;
+  try{ await fetch(SB_URL+"/rest/v1/"+SB_TABLE,{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({id:1,data:state})}); }
+  catch(e){}
+  saveLock=false;
 }
 async function loadMarktData(){
   try{
@@ -775,7 +795,7 @@ function startPolling(){
       var rows=await r.json();
       if(!rows.length) return;
       var fresh=JSON.stringify(rows[0].data);
-      if(fresh!==lastHash){
+      if(fresh!==lastHash && !saveLock){
     lastHash=fresh;
     if(rows[0].data&&rows[0].data.termine){
       state=rows[0].data;
@@ -993,6 +1013,8 @@ function closeNewTerminModal(){
   var lo=document.getElementById("new-limit-on"); if(lo) lo.checked=false;
   var lw=document.getElementById("new-limit-wrap"); if(lw) lw.style.display="none";
   var lv=document.getElementById("new-limit-val"); if(lv) lv.value="";
+  var vo=document.getElementById("new-vote-on"); if(vo) vo.checked=false;
+  var dco=document.getElementById("new-dice-on"); if(dco) dco.checked=false;
 }
 async function createTermin(){
   var title=document.getElementById("new-title").value.trim();
@@ -1010,6 +1032,8 @@ async function createTermin(){
     privat:document.getElementById("new-privat").checked===true,
     limitOn:document.getElementById("new-limit-on").checked===true,
     limitVal:parseInt(document.getElementById("new-limit-val").value)||0,
+    voteOn:document.getElementById("new-vote-on").checked===true,
+    diceOn:document.getElementById("new-dice-on").checked===true,
     personen:[currentName], spiele:[], chat:[], qrcodes:[],
     ts:new Date().toISOString()
   };
@@ -1037,6 +1061,8 @@ function openEditModal(tid){
   document.getElementById("edit-limit-on").checked=limitOn;
   document.getElementById("edit-limit-wrap").style.display=limitOn?"block":"none";
   document.getElementById("edit-limit-val").value=t.limitVal||"";
+  document.getElementById("edit-vote-on").checked=!!t.voteOn;
+  document.getElementById("edit-dice-on").checked=!!t.diceOn;
   document.getElementById("edit-modal").style.display="flex";
 }
 function closeEditModal(){ document.getElementById("edit-modal").style.display="none"; editTid=null; }
@@ -1050,6 +1076,8 @@ async function saveEdit(){
   t.privat=document.getElementById("edit-privat").checked;
   t.limitOn=document.getElementById("edit-limit-on").checked;
   t.limitVal=parseInt(document.getElementById("edit-limit-val").value)||0;
+  t.voteOn=document.getElementById("edit-vote-on").checked;
+  t.diceOn=document.getElementById("edit-dice-on").checked;
   closeEditModal(); rerenderCard(editTid); toast("Gespeichert \u2713"); saveState();
 }
 
@@ -1196,7 +1224,7 @@ function buildTerminCard(t, open){
   if(userCanAdd&&(t.offen!==false||t.creator===currentName)){
     addSection="<div style='display:flex;gap:8px;margin-bottom:"+(t.spiele.length?"18px":"0")+"'>"
       +"<button class='btn btn-blue btn-sm' onclick='openAddModal("+t.id+")'>+ Spiel hinzuf\u00fcgen</button>"
-      +(t.spiele.length>1?"<button class='btn btn-sm' onclick='rollDice("+t.id+")' title='Zuf\u00e4lliges Spiel ausw\u00e4hlen' style='background:#7c3aed;color:#fff;border-color:#7c3aed;font-size:1rem;padding:0 12px'>&#127922;</button>":"")
+      +(t.diceOn&&t.spiele.length>1?"<button class='btn btn-sm' onclick='rollDice("+t.id+")' title='Zuf\u00e4lliges Spiel ausw\u00e4hlen' style='background:#7c3aed;color:#fff;border-color:#7c3aed;font-size:1rem;padding:0 12px'>&#127922;</button>":"")
       +"</div>";
   } else if(!userCanAdd) {
     addSection="<p style='font-size:.82rem;color:var(--text-3);margin-bottom:16px;padding:10px 12px;background:#f0fdf4;border:1px solid var(--green-bd);border-radius:var(--radius-sm)'>&#10004; Erst zusagen um Spiele vorzuschlagen!</p>";
@@ -1322,16 +1350,16 @@ function buildSpielCard(t,s){
   var ups=s.votes?Object.values(s.votes).filter(function(v){ return v===1; }).length:0;
   var downs=s.votes?Object.values(s.votes).filter(function(v){ return v===-1; }).length:0;
   var maxSc=Math.max.apply(null,t.spiele.map(function(x){ return score(x); }));
-  var isTop=ups>0&&sc===maxSc&&sc>0;
+  var isTop=t.voteOn&&ups>0&&sc===maxSc&&sc>0;
   var pr=s.image?proxyImg(s.image):null;
-  var canDel=isAdmin||s.vorschlaeger===currentName||t.creator===currentName;
+  var canDel=isAdmin||!s.vorschlaeger||s.vorschlaeger===currentName||t.creator===currentName;
   var delBtn=canDel?"<button class='btn btn-sm' style='background:#fef2f2;color:var(--red);border:1px solid #fca5a5;margin-top:6px' data-tid='"+t.id+"' data-sid='"+s.id+"' onclick='deleteSpiel(this.dataset.tid,this.dataset.sid)'>&#128465; Entfernen</button>":"";
   var imgHtml=pr
     ? "<img class='spiel-img' src='"+pr+"' alt='"+h(s.name)+"' onerror='this.style.display=\"none\";this.nextElementSibling.style.display=\"flex\"'>"
     +"<div class='spiel-img-ph' style='display:none'>&#127922;</div>"
     : "<div class='spiel-img-ph'>&#127922;</div>";
   var isDicePick=rolledSpiel[t.id]&&rolledSpiel[t.id]===s.id;
-  var showVote=!t.privat;
+  var showVote=!t.privat&&t.voteOn===true;
   var voter=showVote&&currentName&&t.personen.includes(currentName)?currentName:"";
   var myVote=voter&&s.votes&&s.votes[voter]!==undefined?s.votes[voter]:null;
   var voteHtml="";
@@ -1537,8 +1565,8 @@ async function confirmAddSpiel(){
   var savedTid=addTid;
   closeAddModal();
   updateSpielSection(savedTid);
-  saveState();
   toast("Spiel hinzugef\u00fcgt \u2713");
+  await saveState();
 }
 async function deleteSpiel(tid,sid){
   tid=parseInt(tid);
