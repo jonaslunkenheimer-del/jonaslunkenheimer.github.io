@@ -756,7 +756,7 @@ async function startApp(name){
 async function switchUser(){
   if(session){ try{ await fetch(SB_URL+"/auth/v1/logout",{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_ANON,"Authorization":"Bearer "+(session.access_token||"")}}); }catch(e){} }
   clearSession();
-  session=null; isAdmin=false; currentName=""; state={termine:[],nextId:1}; mData=[];
+  session=null; isAdmin=false; currentName=""; state={termine:[],nextId:1}; mData=[]; myAddedSpiele={};
   document.getElementById("app-screen").style.display="none";
   document.getElementById("name-screen").style.display="flex";
   document.getElementById("login-email").value="";
@@ -827,15 +827,18 @@ async function loadState(){
   if(!state.userColors) state.userColors={};
 }
 var saveLock=false;
+var myAddedSpiele={}; // session-local backup: spiel IDs added by current user
 async function saveState(){
   saveLock=true;
   try{
     var body=JSON.stringify({id:1,data:state});
     await fetch(SB_URL+"/rest/v1/"+SB_TABLE,{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:body});
-    // Pre-seed the hash so polling won't treat our just-saved state as "new"
-    pollingLastHash=JSON.stringify(state);
+    // Fetch the server's actual JSON to seed the hash correctly (JSONB reorders keys)
+    var vr=await fetch(SB_URL+"/rest/v1/"+SB_TABLE+"?id=eq.1&select=data",{headers:authHdrs()});
+    if(vr.ok){ var vd=await vr.json(); if(vd.length) pollingLastHash=JSON.stringify(vd[0].data); }
   }catch(e){}
-  saveLock=false;
+  // Keep lock briefly so any in-flight poll result is ignored
+  setTimeout(function(){ saveLock=false; },2000);
 }
 async function loadMarktData(){
   try{
@@ -1429,8 +1432,8 @@ function buildSpielCard(t,s){
   var maxSc=Math.max.apply(null,t.spiele.map(function(x){ return score(x); }));
   var isTop=t.voteOn&&ups>0&&sc===maxSc&&sc>0;
   var pr=s.image?proxyImg(s.image):null;
-  var canDel=isAdmin||!s.vorschlaeger||s.vorschlaeger===currentName||t.creator===currentName;
-  var delBtn=canDel?"<button class='btn btn-sm' style='background:#fef2f2;color:var(--red);border:1px solid #fca5a5;margin-top:6px' data-tid='"+t.id+"' data-sid='"+s.id+"' onclick='deleteSpiel(this.dataset.tid,this.dataset.sid)'>&#128465; Entfernen</button>":"";
+  var canDel=isAdmin||myAddedSpiele[s.id]||!s.vorschlaeger||s.vorschlaeger===currentName||t.creator===currentName;
+  var delBtn=canDel?"<button style='background:#fef2f2;color:var(--red);border:1px solid #fca5a5;border-radius:8px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1' data-tid='"+t.id+"' data-sid='"+s.id+"' onclick='deleteSpiel(this.dataset.tid,this.dataset.sid)' title='Entfernen'>&#128465;</button>":"";
   var imgHtml=pr
     ? "<img class='spiel-img' src='"+pr+"' alt='"+h(s.name)+"' onerror='this.style.display=\"none\";this.nextElementSibling.style.display=\"flex\"'>"
     +"<div class='spiel-img-ph' style='display:none'>&#127922;</div>"
@@ -1460,8 +1463,11 @@ function buildSpielCard(t,s){
     +"<div class='spiel-sub'>"+(s.year?s.year+" &middot; ":"")+(s.players?s.players+" Spieler &middot; ":"")+(s.playtime?s.playtime+" Min &middot; ":"")+(s.complexity?"Kompl. "+s.complexity:"")+"</div>"
     +voteHtml
     +(s.vorschlaeger?"<div style='font-size:.7rem;color:var(--text-3);margin-top:4px'>&#128100; "+h(s.vorschlaeger)+"</div>":"")
-    +(s.bggUrl?"<a href='"+h(s.bggUrl)+"' target='_blank' style='font-size:.72rem;color:var(--blue);text-decoration:none'>BGG &rarr;</a>":"")
-    +delBtn+"</div></div>";
+    +"<div style='display:flex;align-items:center;justify-content:space-between;margin-top:6px'>"
+    +(s.bggUrl?"<a href='"+h(s.bggUrl)+"' target='_blank' style='display:inline-flex;align-items:center;gap:4px;font-size:.72rem;color:var(--blue);text-decoration:none'><img src='https://cf.geekdo-static.com/icons/favicon2.ico' style='width:13px;height:13px;border-radius:2px' onerror='this.style.display=\"none\"'> BoardGameGeek</a>":"<span></span>")
+    +delBtn
+    +"</div>"
+    +"</div></div>";
 }
 
 // ── Personen ──
@@ -1635,7 +1641,7 @@ async function confirmAddSpiel(){
     errEl.textContent="Spiel bereits vorhanden."; errEl.style.display="block"; return;
   }
   t.spiele.push(spiel);
-  window._pendingSpiel=null;
+  myAddedSpiele[spiel.id]=true;
   var savedTid=addTid;
   closeAddModal();
   updateSpielSection(savedTid);
