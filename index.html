@@ -164,6 +164,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   .cal-dot-row{display:none}
   .cal-event{display:block;background:var(--blue);color:#fff;border-radius:4px;padding:1px 4px;font-size:.6rem;margin-top:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
+/* NOTIF BELL */
+.notif-btn{position:relative;width:38px;height:38px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:background .15s;flex-shrink:0}
+.notif-btn:hover{background:var(--border)}
+.notif-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:8px;font-size:.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);pointer-events:none;display:none}
 /* TOAST */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:#fff;padding:10px 20px;border-radius:20px;font-size:.85rem;font-weight:600;opacity:0;transition:all .25s;z-index:999;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -235,6 +239,9 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
         <button class="tab" id="tab-btn-zusagen" onclick="showTab('zusagen',this)">Meine Zusagen</button>
         <button class="tab" id="tab-btn-markt" onclick="showTab('markt',this)" style="display:none">Marktplatz</button>
       </div>
+      <button class="notif-btn" id="notif-btn" onclick="reopenWhatsnew()" title="Neuigkeiten anzeigen">
+        🔔<div class="notif-badge" id="notif-badge"></div>
+      </button>
       <div class="profile-trigger" onclick="openProfileModal()">
         <div class="av av-md" id="hdr-av"></div>
         <span style="font-size:.88rem;font-weight:600" id="hdr-name"></span>
@@ -808,6 +815,29 @@ async function switchUser(){
 
 // ── What's New ──
 var bggProfiles={}; // name -> bgg_username
+var _whatsnewHtml=""; // cached for re-open
+var _whatsnewCount=0;
+
+function reopenWhatsnew(){
+  if(!_whatsnewHtml){ toast("Keine Neuigkeiten vorhanden."); return; }
+  document.getElementById("whatsnew-body").innerHTML=_whatsnewHtml;
+  document.getElementById("whatsnew-modal").style.display="flex";
+}
+
+function setNotifBadge(count){
+  var badge=document.getElementById("notif-badge"); if(!badge) return;
+  var btn=document.getElementById("notif-btn"); if(!btn) return;
+  if(count>0){
+    badge.style.display="flex";
+    badge.textContent=count>9?"9+":String(count);
+    btn.style.background="#fef2f2";
+    btn.style.borderColor="#fca5a5";
+  } else {
+    badge.style.display="none";
+    btn.style.background="";
+    btn.style.borderColor="";
+  }
+}
 
 async function loadBggProfiles(){
   try{
@@ -870,8 +900,11 @@ async function showWhatsnew(){
   }
   document.getElementById("whatsnew-body").innerHTML=html;
   document.getElementById("whatsnew-modal").style.display="flex";
+  _whatsnewHtml=html;
+  _whatsnewCount=nt.length+nm.length;
+  setNotifBadge(_whatsnewCount);
 }
-function closeWhatsnew(){ document.getElementById("whatsnew-modal").style.display="none"; }
+function closeWhatsnew(){ document.getElementById("whatsnew-modal").style.display="none"; setNotifBadge(0); }
 
 // ── Supabase ──
 async function loadState(){
