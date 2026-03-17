@@ -2776,6 +2776,8 @@ var konvPartner = null;
 var konvSubject = null;
 var composeToUser = null;
 
+var nachrSaveLock=false;
+
 async function loadNachrichten(){
   try{
     var r=await fetch(SB_URL+"/rest/v1/"+SB_NACHR+"?id=eq.1&select=data",{headers:authHdrs()});
@@ -2785,9 +2787,11 @@ async function loadNachrichten(){
   }catch(e){ nachrData=[]; }
 }
 async function saveNachrichten(){
+  nachrSaveLock=true;
   try{
     await fetch(SB_URL+"/rest/v1/"+SB_NACHR,{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({id:1,data:nachrData})});
   }catch(e){}
+  setTimeout(function(){ nachrSaveLock=false; },3000);
 }
 
 function nachrUnreadCount(){
@@ -2890,12 +2894,31 @@ function renderConvList(){
       +"<div style='flex:1;min-width:0'>"
       +"<div style='display:flex;justify-content:space-between;align-items:center;gap:4px'>"
       +"<div class='nachr-conv-name'>"+h(t.partner)+"</div>"
+      +"<div style='display:flex;align-items:center;gap:4px'>"
       +"<div class='nachr-conv-time'>"+timeStr+"</div>"
-      +"</div>"
+      +"<button onclick='event.stopPropagation();deleteConv(\""+h(t.key)+"\")' title='Konversation löschen' style='background:none;border:none;color:var(--text-3);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:.6;line-height:1' onmouseover=\"this.style.opacity='1';this.style.color='var(--red)'\" onmouseout=\"this.style.opacity='.6';this.style.color='var(--text-3)'\">🗑</button>"
+      +"</div></div>"
       +"<div class='nachr-conv-preview'>"+(t.unread?"<strong>":"")+h((t.subject||"")+(t.subject?" · ":"")+t.latest.body.slice(0,50))+(t.unread?"</strong>":"")+"</div>"
       +"</div>"
       +"</div>";
   }).join("");
+}
+
+// ── Delete a conversation ──
+function deleteConv(threadKey){
+  showConfirm("Konversation löschen?","Alle Nachrichten in dieser Konversation werden für dich entfernt.",async function(){
+    nachrData=nachrData.filter(function(m){ return (m.thread_id||m.id)!==threadKey; });
+    if(konvPartner&&(konvPartner+konvSubject===(threadKey))){
+      showChatPlaceholder();
+    }
+    // If the deleted conv was open, clear it
+    konvPartner=null; konvSubject=null;
+    showChatPlaceholder();
+    renderConvList();
+    updateNachrBadge();
+    await saveNachrichten();
+    toast("Konversation gelöscht.");
+  });
 }
 
 // ── Open a conversation ──
@@ -3056,6 +3079,7 @@ function startNachrPolling(){
       if(!r.ok) return;
       var rows=await r.json();
       var fresh=(rows.length&&rows[0].data)?rows[0].data:[];
+      if(nachrSaveLock) return;
       var oldCount=nachrUnreadCount();
       nachrData=fresh;
       var newCount=nachrUnreadCount();
