@@ -387,7 +387,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <!-- ADD SPIEL MODAL -->
 <div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeAddModal()">
-  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:up .2s ease">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:700px;max-height:92vh;overflow-y:auto;animation:up .2s ease">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:1rem;font-weight:800">🎲 Spiel hinzufügen</div>
       <button onclick="closeAddModal()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-3)">✕</button>
@@ -523,7 +523,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <!-- INSERAT MODAL -->
 <div id="inserat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeInseratModal()">
-  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:up .2s ease">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:700px;max-height:92vh;overflow-y:auto;animation:up .2s ease">
     <div style="background:linear-gradient(135deg,var(--blue),#6a9af8);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1">
       <div>
         <div id="inserat-modal-title" style="font-size:1.1rem;font-weight:800;color:#fff">🛒 Spiel inserieren</div>
@@ -1514,7 +1514,7 @@ function buildSpielCard(t,s){
   return "<div class='spiel-card"+(isTop?" top-pick":"")+(isDicePick?" dice-pick":"")+"'>"+imgHtml
     +"<div class='spiel-info'>"
     +"<div class='spiel-name'>"+(isTop?"&#11088; ":"")+(isDicePick?"&#127922; ":"")+h(s.name)+"</div>"
-    +"<div class='spiel-sub'>"+(s.year?s.year+" &middot; ":"")+(s.players?s.players+" Spieler &middot; ":"")+(s.playtime?s.playtime+" Min &middot; ":"")+(s.complexity?"Kompl. "+s.complexity:"")+"</div>"
+    +"<div class='spiel-sub'>"+(s.year?s.year+" &middot; ":"")+(s.players?s.players+" &middot; ":"")+(s.complexity?"Kompl. "+s.complexity:"")+"</div>"
     +voteHtml
     +(s.vorschlaeger?"<div style='font-size:.7rem;color:var(--text-3);margin-top:4px'>&#128100; "+h(s.vorschlaeger)+"</div>":"")
     +"<div style='display:flex;align-items:center;justify-content:space-between;margin-top:6px'>"
@@ -1713,7 +1713,7 @@ function showSpielPreview(data){
   var img=document.getElementById("sp-img");
   if(data.image){ img.src=proxyImg(data.image); img.style.display="block"; } else { img.style.display="none"; }
   document.getElementById("sp-name").textContent=data.name;
-  document.getElementById("sp-sub").textContent=[data.year,data.players,data.playtime].filter(Boolean).join(" \u00b7 ");
+  document.getElementById("sp-sub").textContent=[data.year,data.players].filter(Boolean).join(" \u00b7 ");
   document.getElementById("spiel-preview").style.display="flex";
 }
 async function confirmAddSpiel(){
