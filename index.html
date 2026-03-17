@@ -372,7 +372,16 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
         <button class="btn btn-outline btn-sm" style="width:100%;margin-top:10px" onclick="saveAvatarColor()">🎨 Farbe speichern</button>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
-        <div class="form-field" style="margin-bottom:8px"><label>Neues Passwort</label><input class="input-field" id="profil-pw" type="password" placeholder="Neues Passwort" autocomplete="new-password"></div>
+        <div class="form-field" style="margin-bottom:8px">
+          <label>BoardGameGeek Profil</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <img src="https://cf.geekdo-static.com/icons/favicon2.ico" style="width:16px;height:16px;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
+            <input class="input-field" id="profil-bgg" placeholder="BGG-Benutzername" autocomplete="off" style="flex:1">
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="saveBggProfile()">🎲 BGG Profil speichern</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px"><input class="input-field" id="profil-pw" type="password" placeholder="Neues Passwort" autocomplete="new-password"></div>
         <button class="btn btn-outline btn-sm" style="width:100%;" onclick="savePassword()">🔑 Passwort ändern</button>
       </div>
       <div id="profil-msg" style="display:none;font-size:.82rem;margin-bottom:12px"></div>
@@ -768,6 +777,7 @@ async function startApp(name){
   if(adminBtn) adminBtn.style.display=isAdmin?"":"none";
   try{ await loadState(); }catch(e){}
   await loadBggToken();
+  await loadBggProfiles();
   // Pre-populate myAddedSpiele from DB data for this user
   if(state&&state.termine){
     state.termine.forEach(function(t){
@@ -796,13 +806,27 @@ async function switchUser(){
 }
 
 // ── What's New ──
+var bggProfiles={}; // name -> bgg_username
+
+async function loadBggProfiles(){
+  try{
+    var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,bgg_profile",{headers:authHdrs()});
+    if(r.ok){
+      var rows=await r.json();
+      rows.forEach(function(row){ if(row.bgg_profile) bggProfiles[row.user_name]=row.bgg_profile; });
+    }
+  }catch(e){}
+}
+
 async function getAndUpdateLogin(){
   var now=new Date().toISOString();
+  var meta=session&&session.user&&session.user.user_metadata;
+  var bggProfile=(meta&&meta.bgg_profile)||"";
   try{
     var r=await fetch(SB_URL+"/rest/v1/user_meta?user_name=eq."+encodeURIComponent(currentName)+"&select=last_login",{headers:{"apikey":SB_ANON,"Authorization":"Bearer "+((session&&session.access_token)||SB_ANON)}});
     var rows=r.ok?await r.json():[];
     var last=rows.length?rows[0].last_login:null;
-    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:{"apikey":SB_ANON,"Authorization":"Bearer "+((session&&session.access_token)||SB_ANON),"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_name:currentName,last_login:now})});
+    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:{"apikey":SB_ANON,"Authorization":"Bearer "+((session&&session.access_token)||SB_ANON),"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_name:currentName,last_login:now,bgg_profile:bggProfile})});
     return last?new Date(last):null;
   }catch(e){ return null; }
 }
@@ -966,6 +990,10 @@ function openProfileModal(){
   document.getElementById("profil-displayname").value=currentName;
   document.getElementById("profil-name-lbl").textContent=currentName;
   document.getElementById("profil-msg").style.display="none";
+  // Load BGG profile from session metadata
+  var meta=session&&session.user&&session.user.user_metadata;
+  var bggUser=(meta&&meta.bgg_profile)||"";
+  document.getElementById("profil-bgg").value=bggUser;
   var currentColor=nameColor(currentName);
   setAv(document.getElementById("profil-av"),currentName);
   // Init color picker
@@ -1033,6 +1061,23 @@ async function saveDisplayName(){
     setAv(document.getElementById("hdr-av"),n);
     var msg=document.getElementById("profil-msg");
     msg.textContent="\u2713 Name gespeichert"; msg.style.color="var(--green)"; msg.style.display="block";
+    setTimeout(function(){ msg.style.display="none"; },2000);
+  }catch(e){ toast("Fehler beim Speichern"); }
+}
+async function saveBggProfile(){
+  var val=document.getElementById("profil-bgg").value.trim();
+  // Strip full URL to just username if pasted
+  val=val.replace(/https?:\/\/(www\.)?boardgamegeek\.com\/user\//i,"").replace(/\//g,"");
+  try{
+    var r=await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:authHdrs(),body:JSON.stringify({data:{bgg_profile:val}})});
+    if(!r.ok) throw new Error("Fehler");
+    var d=await r.json();
+    if(session&&session.user) session.user.user_metadata=d.user_metadata||session.user.user_metadata;
+    if(val) bggProfiles[currentName]=val; else delete bggProfiles[currentName];
+    document.getElementById("profil-bgg").value=val;
+    var msg=document.getElementById("profil-msg");
+    msg.textContent=val?"\u2713 BGG Profil gespeichert":"✓ BGG Profil entfernt";
+    msg.style.color="var(--green)"; msg.style.display="block";
     setTimeout(function(){ msg.style.display="none"; },2000);
   }catch(e){ toast("Fehler beim Speichern"); }
 }
@@ -1341,7 +1386,9 @@ function buildTerminCard(t, open){
   // Personen
   var persHtml=t.personen.map(function(p){
     var rmBtn=(isAdmin||p===currentName)?"<span class='rm' onclick='removePerson("+t.id+",\""+p.replace(/"/g,"&quot;")+"\")'>&#215;</span>":"";
-    return "<span class='person-chip'><div class='av av-sm' style='background:"+nameColor(p)+"'>"+nameInit(p)+"</div><span>"+h(p)+"</span>"+rmBtn+"</span>";
+    var bggU=bggProfiles[p];
+    var bggLink=bggU?"<a href='https://boardgamegeek.com/user/"+encodeURIComponent(bggU)+"' target='_blank' title='BGG: "+h(bggU)+"' style='display:inline-flex;align-items:center;color:inherit;opacity:.7;text-decoration:none' onclick='event.stopPropagation()'><img src='https://cf.geekdo-static.com/icons/favicon2.ico' style='width:11px;height:11px;border-radius:2px' onerror='this.style.display=\"none\"'></a>":"";
+    return "<span class='person-chip'><div class='av av-sm' style='background:"+nameColor(p)+"'>"+nameInit(p)+"</div><span>"+h(p)+"</span>"+bggLink+rmBtn+"</span>";
   }).join("");
 
   // Spiele
