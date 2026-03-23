@@ -3238,12 +3238,19 @@ async function saveQr(){
   var t=getT(qrTid); if(!t) return;
   if(!t.qrcodes) t.qrcodes=[];
   t.qrcodes.push({url:url,label:label||"BG Stats Link",author:currentName,ts:new Date().toISOString()});
-  closeQrModal(); rerenderCard(qrTid); toast("QR Code hinzugef\u00fcgt \u2713"); saveState();
+  closeQrModal();
+  // Update QR list directly in DOM without full card rerender
+  var qrListEl=document.getElementById("qr-list-"+qrTid);
+  if(qrListEl) qrListEl.innerHTML=buildQrList(t);
+  toast("QR Code hinzugef\u00fcgt \u2713");
+  saveState();
 }
 async function removeQr(tid,idx){
   var t=getT(tid); if(!t||!t.qrcodes) return;
   t.qrcodes.splice(idx,1);
-  rerenderCard(tid); toast("QR Code entfernt."); saveState();
+  var qrListEl=document.getElementById("qr-list-"+tid);
+  if(qrListEl) qrListEl.innerHTML=buildQrList(t);
+  toast("QR Code entfernt."); saveState();
 }
 
 </script>
