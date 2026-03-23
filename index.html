@@ -1735,7 +1735,7 @@ async function saveEdit(){
   t.mitspielerGesucht=sucheOnEdit;
   var savedEditTid=editTid;
   closeEditModal();
-  rerenderCard(savedEditTid);
+  renderTermine(); // full rebuild guarantees voteOn/diceOn changes always reflect correctly
   toast("Gespeichert \u2713");
   await saveState();
 }
