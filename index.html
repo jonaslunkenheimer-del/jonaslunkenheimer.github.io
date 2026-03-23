@@ -3466,18 +3466,36 @@ async function saveSammlungAutoSync(){
   }catch(e){}
 }
 
-async function importFromBgg(){
-  var bggUser=bggProfiles[currentName];
-  if(!bggUser){ toast("Bitte zuerst BGG-Profil im Profil hinterlegen."); return; }
-  var btn=document.getElementById("bgg-import-btn");
-  if(btn){ btn.textContent="⏳ Importiere…"; btn.disabled=true; }
-  try{
+async function fetchBggCollection(bggUser){
+  // BGG collection API returns 202 on first request while it prepares data.
+  // We retry up to 8 times with increasing delays.
+  var delays=[3000,4000,5000,5000,5000,6000,6000,6000];
+  for(var i=0;i<=delays.length;i++){
     var r=await fetch(SB_URL+"/functions/v1/bgg-proxy?action=collection&username="+encodeURIComponent(bggUser),{headers:authHdrs()});
     if(!r.ok) throw new Error("HTTP "+r.status);
     var xml=await r.text();
     var doc=new DOMParser().parseFromString(xml,"text/xml");
+    // Check for 202-style "please try again" message
+    var msg=doc.querySelector("message");
+    if(msg&&msg.textContent.toLowerCase().includes("try again")){
+      if(i>=delays.length) throw new Error("BGG antwortet nicht. Bitte in 1-2 Minuten erneut versuchen.");
+      await new Promise(function(res){ setTimeout(res, delays[i]); });
+      continue;
+    }
     var items=Array.from(doc.querySelectorAll("item"));
-    if(!items.length) throw new Error("Keine Spiele gefunden oder BGG-Profil nicht öffentlich.");
+    return items;
+  }
+  throw new Error("BGG Timeout.");
+}
+
+async function importFromBgg(){
+  var bggUser=bggProfiles[currentName];
+  if(!bggUser){ toast("Bitte zuerst BGG-Profil im Profil hinterlegen."); return; }
+  var btn=document.getElementById("bgg-import-btn");
+  if(btn){ btn.textContent="⏳ BGG antwortet…"; btn.disabled=true; }
+  try{
+    var items=await fetchBggCollection(bggUser);
+    if(!items.length) throw new Error("Keine Spiele gefunden. Ist das BGG-Profil öffentlich?");
     var coll=items.map(function(el){
       var id=el.getAttribute("objectid");
       var nameEl=el.querySelector("name"); var name=nameEl?nameEl.textContent.trim():"Unbekannt";
@@ -3498,11 +3516,7 @@ async function importFromBgg(){
 async function importFromBggSilent(){
   var bggUser=bggProfiles[currentName]; if(!bggUser) return;
   try{
-    var r=await fetch(SB_URL+"/functions/v1/bgg-proxy?action=collection&username="+encodeURIComponent(bggUser),{headers:authHdrs()});
-    if(!r.ok) return;
-    var xml=await r.text();
-    var doc=new DOMParser().parseFromString(xml,"text/xml");
-    var items=Array.from(doc.querySelectorAll("item"));
+    var items=await fetchBggCollection(bggUser);
     if(!items.length) return;
     sammlungData[currentName]=items.map(function(el){
       var id=el.getAttribute("objectid");
