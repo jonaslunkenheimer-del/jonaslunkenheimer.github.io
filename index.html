@@ -570,7 +570,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
           <div class="cal-dow">Mo</div><div class="cal-dow">Di</div><div class="cal-dow">Mi</div>
           <div class="cal-dow">Do</div><div class="cal-dow">Fr</div><div class="cal-dow">Sa</div><div class="cal-dow">So</div>
         </div>
-        <div class="cal-detail" id="cal-detail"></div>
+        <div class="cal-detail" id="cal-detail"></div>      </div>
       </div>
       <div id="cal-undated-wrap"></div>
     </div>
@@ -619,14 +619,6 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
           <select class="input-field" id="sammlung-view-user" onchange="filterSammlung()" style="max-width:180px">
             <option value="__all__">🌐 Alle Sammlungen</option>
           </select>
-        </div>
-        <!-- Filter row -->
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:.78rem;cursor:pointer;user-select:none" onclick="toggleSammlungErweiterungen()">
-            <span id="erweiterung-icon">🚫</span>
-            <span id="erweiterung-lbl" style="font-weight:600;color:var(--text-2)">Erweiterungen ausgeblendet</span>
-          </div>
-          <div id="sammlung-count-badge" style="font-size:.75rem;color:var(--text-3)"></div>
         </div>
         <div id="sammlung-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px"></div>
       </div>
@@ -1287,10 +1279,10 @@ async function startApp(name){
   var adminBtn=document.getElementById("hdr-admin-btn");
   if(adminBtn) adminBtn.style.display=isAdmin?"":"none";
   try{ await loadState(); }catch(e){}
-  try{ await loadBggToken(); }catch(e){}
-  try{ await loadBggProfiles(); }catch(e){}
-  try{ await loadNotifPrefs(); }catch(e){}
-  try{ await loadAllSammlungen(); }catch(e){}
+  await loadBggToken();
+  await loadBggProfiles();
+  await loadNotifPrefs();
+  await loadAllSammlungen(); // must be after loadBggProfiles so bggProfiles is populated for auto-sync
   // Pre-populate myAddedSpiele from DB data for this user
   if(state&&state.termine){
     state.termine.forEach(function(t){
@@ -3475,16 +3467,7 @@ function startNachrPolling(){
 }
 
 // ── Spielesammlung ──
-var sammlungShowErweiterungen = false; // default: hidden
-
-function toggleSammlungErweiterungen(){
-  sammlungShowErweiterungen=!sammlungShowErweiterungen;
-  var icon=document.getElementById("erweiterung-icon");
-  var lbl=document.getElementById("erweiterung-lbl");
-  if(icon) icon.textContent=sammlungShowErweiterungen?"✅":"🚫";
-  if(lbl) lbl.textContent=sammlungShowErweiterungen?"Erweiterungen eingeblendet":"Erweiterungen ausgeblendet";
-  filterSammlung();
-}
+var sammlungData = {};    // { userName: [{bggId, name, year, players, image, bggUrl}] }
 var sammlungPending = null; // pending spiel to add
 var sammlungSearchDebounce = null;
 var sammlungAsResults = [], sammlungAsHi = -1;
@@ -3549,23 +3532,25 @@ async function importFromBgg(){
     var items=await fetchBggCollection(bggUser);
     clearInterval(stepTimer);
     if(!items.length){
-      // BGG returned empty — keep existing data silently
+      // BGG returned empty — could be a cache issue, keep existing data
       var existing=(sammlungData[currentName]||[]).length;
-      if(lbl) lbl.textContent=existing?"↻ Sammlung aktualisieren":"BGG importieren";
+      if(existing>0){
+        toast("BGG hat keine neuen Daten geliefert — "+existing+" gespeicherte Spiele bleiben.");
+      } else {
+        toast("Keine Spiele gefunden. Bitte in 1-2 Minuten erneut versuchen.");
+      }
+      if(lbl) lbl.textContent="↻ Sammlung aktualisieren";
       if(btn){ btn.disabled=false; }
-      if(!existing) toast("Keine Spiele gefunden. Bitte in 1-2 Minuten erneut versuchen.");
       return;
     }
     var coll=items.map(function(el){
       var id=el.getAttribute("objectid");
-      var subtype=el.getAttribute("subtype")||"";
-      var isExpansion=subtype==="boardgameexpansion";
       var nameEl=el.querySelector("name"); var name=nameEl?nameEl.textContent.trim():"Unbekannt";
       var yearEl=el.querySelector("yearpublished"); var year=yearEl?yearEl.textContent.trim():"";
       var imgEl=el.querySelector("thumbnail"); var image=imgEl?imgEl.textContent.trim():"";
       var minP=el.querySelector("stats[minplayers]"); var maxP=el.querySelector("stats[maxplayers]");
       var players=minP&&maxP?minP.getAttribute("minplayers")+"-"+maxP.getAttribute("maxplayers")+" Spieler":"";
-      return {bggId:id,name:name,year:year,image:image,players:players,bggUrl:"https://boardgamegeek.com/boardgame/"+id,isExpansion:isExpansion};
+      return {bggId:id,name:name,year:year,image:image,players:players,bggUrl:"https://boardgamegeek.com/boardgame/"+id};
     });
     sammlungData[currentName]=coll;
     await saveMySammlung();
@@ -3644,9 +3629,8 @@ function renderSammlung(filterUser){
       });
     });
     var coll=Object.values(merged);
-    if(!sammlungShowErweiterungen) coll=coll.filter(function(s){ return !s.isExpansion; });
     if(q) coll=coll.filter(function(s){ return s.name.toLowerCase().includes(q); });
-    coll.sort(function(a,b){ return (a.name||"").localeCompare((b.name||""),"de"); });
+    coll.sort(function(a,b){ return a.name.localeCompare(b.name,"de"); });
     if(!coll.length){
       grid.innerHTML="<div class='empty' style='grid-column:1/-1'><div class='empty-icon'>🎮</div><p>Keine Spiele gefunden.</p></div>";
       return;
@@ -3675,12 +3659,8 @@ function renderSammlung(filterUser){
   // Single user view
   var target=viewUser||currentName;
   var coll=(sammlungData[target]||[]).slice();
-  if(!sammlungShowErweiterungen) coll=coll.filter(function(s){ return !s.isExpansion; });
   if(q) coll=coll.filter(function(s){ return s.name.toLowerCase().includes(q); });
-  // Update count badge
-  var badge=document.getElementById("sammlung-count-badge");
-  if(badge){ var totalCnt=(sammlungData[target]||[]).length; var expCnt=(sammlungData[target]||[]).filter(function(s){ return s.isExpansion; }).length; badge.textContent=coll.length+" Spiele"+(expCnt?" ("+expCnt+" Erweiterungen)":""); }
-  coll.sort(function(a,b){ return (a.name||"").localeCompare((b.name||""),"de"); });
+  coll.sort(function(a,b){ return a.name.localeCompare(b.name,"de"); });
 
   if(!coll.length){
     var isMe=target===currentName;
