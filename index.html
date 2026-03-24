@@ -2378,7 +2378,7 @@ function buildSpielCard(t,s){
   return "<div class='spiel-card"+(isTop?" top-pick":"")+(isDicePick?" dice-pick":"")+"'>"+imgHtml
     +"<div class='spiel-info'>"
     +"<div class='spiel-name'>"+(isTop?"&#11088; ":"")+(isDicePick?"&#127922; ":"")+h(s.name)+"</div>"
-    +"<div class='spiel-sub'>"+(s.year?s.year+" &middot; ":"")+(s.players?s.players+" &middot; ":"")+(s.complexity?"Kompl. "+s.complexity:"")+"</div>"
+    +"<div class='spiel-sub'>"+(s.players?s.players+" &middot; ":"")+(s.complexity?"Kompl. "+s.complexity:"")+"</div>"
     +voteHtml
     +(s.vorschlaeger?"<div style='font-size:.7rem;color:var(--text-3);margin-top:4px'>&#128100; hinzugef\u00fcgt von "+h(s.vorschlaeger)+"</div>":"")
     +ownerHtml
