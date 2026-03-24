@@ -1287,10 +1287,10 @@ async function startApp(name){
   var adminBtn=document.getElementById("hdr-admin-btn");
   if(adminBtn) adminBtn.style.display=isAdmin?"":"none";
   try{ await loadState(); }catch(e){}
-  await loadBggToken();
-  await loadBggProfiles();
-  await loadNotifPrefs();
-  await loadAllSammlungen(); // must be after loadBggProfiles so bggProfiles is populated for auto-sync
+  try{ await loadBggToken(); }catch(e){}
+  try{ await loadBggProfiles(); }catch(e){}
+  try{ await loadNotifPrefs(); }catch(e){}
+  try{ await loadAllSammlungen(); }catch(e){}
   // Pre-populate myAddedSpiele from DB data for this user
   if(state&&state.termine){
     state.termine.forEach(function(t){
