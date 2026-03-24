@@ -1737,8 +1737,9 @@ async function saveDisplayName(){
   var oldName=currentName;
   try{
     await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:authHdrs(),body:JSON.stringify({data:{display_name:n}})});
-    // Store display_name in user_meta for name-map lookups
-    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({user_name:n,display_name:n})});
+    // Store display_name in user_meta under the ORIGINAL user_name (login name)
+    var loginName=session&&session.user&&session.user.email?session.user.email.replace("@meeple.de",""):oldName;
+    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({user_name:loginName,display_name:n})});
     // Update all references in termine
     if(oldName!==n){
       var changed=false;
@@ -2466,35 +2467,28 @@ async function loadMemberPicker(tid){
   listEl.innerHTML="<span style='font-size:.78rem;color:var(--text-3)'>Lade\u2026</span>";
   if(!userCache){
     try{
-      var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name&order=user_name",{headers:authHdrs()});
+      // Load from user_meta using last_login as indicator of real accounts
+      // Use display_name if available, otherwise user_name
+      var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,display_name&order=user_name",{headers:authHdrs()});
       if(!r.ok) throw new Error("HTTP "+r.status);
       var rows=await r.json();
-      // Normalize key: strip ALL non-alphanumeric chars, lowercase
-      // When duplicate found, prefer the "nicer" name:
-      // a name with spaces/capitals (display name) beats a dash/dot-separated login name
+      // Build map: prefer display_name over user_name, deduplicate by normalized key
       var seen={};
       function normKey(n){ return n.toLowerCase().replace(/[^a-z0-9äöüß]/g,""); }
-      function isNicerName(a,b){
-        // prefer the one with spaces or uppercase (display name style)
-        var aHasSpace=a.indexOf(" ")>-1, bHasSpace=b.indexOf(" ")>-1;
-        var aHasDash=a.indexOf("-")>-1||a.indexOf("_")>-1||a.indexOf(".")>-1;
-        var bHasDash=b.indexOf("-")>-1||b.indexOf("_")>-1||b.indexOf(".")>-1;
-        if(aHasSpace&&!bHasSpace) return true;
-        if(bHasSpace&&!aHasSpace) return false;
-        if(!aHasDash&&bHasDash) return true;
-        // prefer the one with any uppercase
-        if(a!==a.toLowerCase()&&b===b.toLowerCase()) return true;
-        return false;
-      }
       rows.forEach(function(row){
-        var name=row.user_name;
+        var name=(row.display_name&&row.display_name.trim())||row.user_name;
         if(!name||!name.length) return;
         var key=normKey(name);
         if(!key) return;
-        if(!seen[key]){
+        // If this user_name normalizes to same key as existing, prefer display_name
+        var existing=seen[key];
+        if(!existing){
           seen[key]=name;
-        } else if(isNicerName(name,seen[key])){
-          seen[key]=name; // replace with nicer version
+        } else {
+          // Prefer display_name (longer/nicer name) over raw username
+          if(row.display_name&&row.display_name.trim()&&(!existing||name.length>existing.length)){
+            seen[key]=name;
+          }
         }
       });
       userCache=Object.values(seen).sort(function(a,b){ return a.localeCompare(b,"de"); });
