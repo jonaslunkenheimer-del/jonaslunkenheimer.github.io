@@ -2155,12 +2155,17 @@ function buildTerminCard(t, open){
   // Member picker — only for creator/admin on private termins
   var picker="";
   if(t.privat&&(isAdmin||t.creator===currentName)){
-    picker="<div id='member-picker-"+t.id+"' style='background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px'>"
-      +"<div style='font-size:.75rem;color:var(--text-3);margin-bottom:8px;font-weight:600'>&#128100; Mitglied hinzuf\u00fcgen</div>"
+    picker="<div id='member-picker-"+t.id+"' style='background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden'>"
+      +"<div onclick='toggleMemberPicker("+t.id+")' style='display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;user-select:none'>"
+      +"<div style='font-size:.75rem;color:var(--text-3);font-weight:700'>&#128100; Mitglied hinzuf\u00fcgen</div>"
+      +"<span id='member-picker-arrow-"+t.id+"' style='font-size:.7rem;color:var(--text-3);transition:transform .2s;display:inline-block'>&#9650;</span>"
+      +"</div>"
+      +"<div id='member-picker-body-"+t.id+"' style='padding:0 10px 10px'>"
       +"<div id='member-list-"+t.id+"' style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:140px;overflow-y:auto'></div>"
       +"<div style='display:flex;gap:6px;margin-top:4px'>"
       +"<input class='input-field' id='pi-"+t.id+"' placeholder='Gast ohne Account ...' onkeydown='if(event.keyCode===13)addPerson("+t.id+")' style='flex:1;font-size:.82rem'>"
       +"<button class='btn btn-outline btn-sm' onclick='addPerson("+t.id+")'>+ Hinzuf\u00fcgen</button>"
+      +"</div>"
       +"</div>"
       +"</div>";
   }
@@ -2385,6 +2390,15 @@ function buildSpielCard(t,s){
 }
 
 // ── Personen ──
+function toggleMemberPicker(tid){
+  var body=document.getElementById("member-picker-body-"+tid);
+  var arrow=document.getElementById("member-picker-arrow-"+tid);
+  if(!body) return;
+  var isOpen=body.style.display!=="none";
+  body.style.display=isOpen?"none":"block";
+  if(arrow) arrow.style.transform=isOpen?"rotate(180deg)":"rotate(0deg)";
+}
+
 async function addSelf(tid){
   var t=getT(tid); if(!t||!currentName) return;
   if(t.limitOn&&t.limitVal>0&&t.personen.length>=t.limitVal){ toast("Der Termin ist leider voll."); return; }
