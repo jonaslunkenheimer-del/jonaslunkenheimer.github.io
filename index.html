@@ -606,12 +606,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
             <button onclick="openAddSammlungModal()" class="btn btn-blue btn-sm">＋ Manuell hinzufügen</button>
           </div>
         </div>
-        <!-- Auto-refresh toggle -->
+        <!-- BGG info bar -->
         <div id="sammlung-bgg-info" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:.8rem;color:#0369a1">
-            🔄 <strong>BGG-Profil:</strong> <span id="sammlung-bgg-name"></span>
+            🔗 <strong>BGG-Profil:</strong> <span id="sammlung-bgg-name"></span>
             <span id="sammlung-count-lbl" style="margin-left:8px;opacity:.7"></span>
-            <span style="opacity:.6;font-size:.72rem"> · Auto-Sync aktiv</span>
           </div>
         </div>
         <!-- Search/filter -->
@@ -3475,21 +3474,13 @@ var sammlungAsResults = [], sammlungAsHi = -1;
 
 async function loadAllSammlungen(){
   try{
-    var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,sammlung,sammlung_auto_sync",{headers:authHdrs()});
+    var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,sammlung",{headers:authHdrs()});
     if(!r.ok) return;
     var rows=await r.json();
     rows.forEach(function(row){
       if(row.sammlung) sammlungData[row.user_name]=row.sammlung;
     });
-    var myRow=rows.find(function(r){ return r.user_name===currentName; });
-    if(!myRow){ toast("DEBUG: kein user_meta Eintrag gefunden"); return; }
-    if(!myRow.sammlung_auto_sync){ toast("DEBUG: Auto-Sync ist aus"); return; }
-    var bggUser=bggProfiles[currentName]||(session&&session.user&&session.user.user_metadata&&session.user.user_metadata.bgg_profile)||"";
-    if(!bggUser){ toast("DEBUG: kein BGG-Profil gefunden"); return; }
-    toast("DEBUG: Starte Auto-Sync für "+bggUser);
-    bggProfiles[currentName]=bggUser;
-    importFromBggSilent();
-  }catch(e){ toast("DEBUG loadAllSammlungen Fehler: "+e.message); }
+  }catch(e){}
 }
 
 async function saveMySammlung(){
@@ -3548,21 +3539,17 @@ async function importFromBgg(){
     });
     sammlungData[currentName]=coll;
     await saveMySammlung();
-    // Auto-enable sync after first successful import
-    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({user_name:currentName,sammlung_auto_sync:true})});
     renderSammlung();
-    toast("✓ "+coll.length+" Spiele aus BGG importiert! Auto-Sync aktiviert.");
+    toast("✓ "+coll.length+" Spiele aus BGG importiert!");
   }catch(e){ toast("Fehler: "+e.message); }
   finally{ if(btn){ btn.textContent="↻ BGG importieren"; btn.disabled=false; } }
 }
 
 async function importFromBggSilent(){
   var bggUser=bggProfiles[currentName]||(session&&session.user&&session.user.user_metadata&&session.user.user_metadata.bgg_profile)||"";
-  if(!bggUser){ toast("DEBUG silent: kein BGG-User"); return; }
+  if(!bggUser) return;
   try{
-    toast("DEBUG silent: fetchBggCollection läuft...");
     var items=await fetchBggCollection(bggUser);
-    toast("DEBUG silent: "+items.length+" Items erhalten");
     if(!items.length) return;
     var coll=items.map(function(el){
       var id=el.getAttribute("objectid");
@@ -3571,13 +3558,11 @@ async function importFromBggSilent(){
       var imgEl=el.querySelector("thumbnail"); var image=imgEl?imgEl.textContent.trim():"";
       return {bggId:id,name:name,year:year,image:image,bggUrl:"https://boardgamegeek.com/boardgame/"+id};
     });
-    var oldCount=(sammlungData[currentName]||[]).length;
     sammlungData[currentName]=coll;
     await saveMySammlung();
-    toast("DEBUG silent: gespeichert. Alt:"+oldCount+" Neu:"+coll.length);
     var tab=document.getElementById("tab-sammlung");
     if(tab&&tab.classList.contains("active")) renderSammlung();
-  }catch(e){ toast("DEBUG silent Fehler: "+e.message); }
+  }catch(e){}
 }
 
 function renderSammlung(filterUser){
