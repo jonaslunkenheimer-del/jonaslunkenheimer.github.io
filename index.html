@@ -2467,12 +2467,11 @@ async function loadMemberPicker(tid){
   listEl.innerHTML="<span style='font-size:.78rem;color:var(--text-3)'>Lade\u2026</span>";
   if(!userCache){
     try{
-      // Load from user_meta using last_login as indicator of real accounts
-      // Use display_name if available, otherwise user_name
+      // Try with display_name first, fall back to just user_name if column missing
       var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,display_name&order=user_name",{headers:authHdrs()});
+      if(!r.ok) r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name&order=user_name",{headers:authHdrs()});
       if(!r.ok) throw new Error("HTTP "+r.status);
       var rows=await r.json();
-      // Build map: prefer display_name over user_name, deduplicate by normalized key
       var seen={};
       function normKey(n){ return n.toLowerCase().replace(/[^a-z0-9äöüß]/g,""); }
       rows.forEach(function(row){
@@ -2480,15 +2479,10 @@ async function loadMemberPicker(tid){
         if(!name||!name.length) return;
         var key=normKey(name);
         if(!key) return;
-        // If this user_name normalizes to same key as existing, prefer display_name
-        var existing=seen[key];
-        if(!existing){
+        if(!seen[key]){
           seen[key]=name;
-        } else {
-          // Prefer display_name (longer/nicer name) over raw username
-          if(row.display_name&&row.display_name.trim()&&(!existing||name.length>existing.length)){
-            seen[key]=name;
-          }
+        } else if(name.length>seen[key].length){
+          seen[key]=name;
         }
       });
       userCache=Object.values(seen).sort(function(a,b){ return a.localeCompare(b,"de"); });
