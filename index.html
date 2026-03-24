@@ -3530,7 +3530,12 @@ async function importFromBgg(){
   try{
     var items=await fetchBggCollection(bggUser);
     clearInterval(stepTimer);
-    if(!items.length) throw new Error("Keine Spiele gefunden. Ist das BGG-Profil öffentlich?");
+    if(!items.length){
+      toast("BGG meldet leere Sammlung — gespeicherte Spiele bleiben erhalten.");
+      if(lbl) lbl.textContent="↻ Sammlung aktualisieren";
+      if(btn){ btn.disabled=false; }
+      return;
+    }
     var coll=items.map(function(el){
       var id=el.getAttribute("objectid");
       var nameEl=el.querySelector("name"); var name=nameEl?nameEl.textContent.trim():"Unbekannt";
