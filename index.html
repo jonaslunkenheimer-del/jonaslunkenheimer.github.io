@@ -329,6 +329,12 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .sam-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1)}
 .sam-img{width:100%;height:120px;object-fit:cover}
 .sam-img-ph{width:100%;height:120px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:2rem}
+@media(max-width:600px){
+  .sam-img,.sam-img-ph{height:90px}
+  .sam-name{font-size:.75rem}
+  .sam-info{padding:6px 8px}
+  #sammlung-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))!important;gap:8px!important}
+}
 .sam-info{padding:8px 10px}
 .sam-name{font-weight:700;font-size:.82rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sam-sub{font-size:.68rem;color:var(--text-3)}
