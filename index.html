@@ -3481,17 +3481,15 @@ async function loadAllSammlungen(){
     rows.forEach(function(row){
       if(row.sammlung) sammlungData[row.user_name]=row.sammlung;
     });
-    // Check auto-sync for current user
     var myRow=rows.find(function(r){ return r.user_name===currentName; });
-    if(myRow&&myRow.sammlung_auto_sync){
-      var bggUser=bggProfiles[currentName]||(session&&session.user&&session.user.user_metadata&&session.user.user_metadata.bgg_profile)||"";
-      if(bggUser){
-        bggProfiles[currentName]=bggUser;
-        // Run silent import in background — don't await so login isn't blocked
-        importFromBggSilent();
-      }
-    }
-  }catch(e){}
+    if(!myRow){ toast("DEBUG: kein user_meta Eintrag gefunden"); return; }
+    if(!myRow.sammlung_auto_sync){ toast("DEBUG: Auto-Sync ist aus"); return; }
+    var bggUser=bggProfiles[currentName]||(session&&session.user&&session.user.user_metadata&&session.user.user_metadata.bgg_profile)||"";
+    if(!bggUser){ toast("DEBUG: kein BGG-Profil gefunden"); return; }
+    toast("DEBUG: Starte Auto-Sync für "+bggUser);
+    bggProfiles[currentName]=bggUser;
+    importFromBggSilent();
+  }catch(e){ toast("DEBUG loadAllSammlungen Fehler: "+e.message); }
 }
 
 async function saveMySammlung(){
