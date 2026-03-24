@@ -3501,26 +3501,34 @@ async function saveMySammlung(){
 
 
 async function fetchBggCollection(bggUser){
-  var delays=[4000,5000,6000,6000,7000,7000,8000,8000];
+  var url=SB_URL+"/functions/v1/bgg-proxy?action=collection&username="+encodeURIComponent(bggUser);
+  // First request "wakes up" BGG's cache — almost always returns 400/202
+  try{ await fetch(url,{headers:authHdrs()}); }catch(e){}
+  // Wait for BGG to prepare
+  await new Promise(function(res){ setTimeout(res,8000); });
+  // Now retry up to 6 times
+  var delays=[5000,6000,7000,8000,9000,10000];
   for(var i=0;i<=delays.length;i++){
-    var r=await fetch(SB_URL+"/functions/v1/bgg-proxy?action=collection&username="+encodeURIComponent(bggUser),{headers:authHdrs()});
-    var xml=await r.text();
-    // Edge Function returns 400 or 502 when BGG isn't ready yet — retry
-    if(!r.ok){
-      if(i>=delays.length) throw new Error("BGG antwortet nicht. Bitte manuell importieren.");
-      await new Promise(function(res){ setTimeout(res, delays[i]); });
-      continue;
+    try{
+      var r=await fetch(url,{headers:authHdrs()});
+      var xml=await r.text();
+      if(!r.ok||xml.includes("try again")||xml.includes("queued")){
+        if(i>=delays.length) throw new Error("BGG Timeout nach mehreren Versuchen.");
+        await new Promise(function(res){ setTimeout(res,delays[i]); });
+        continue;
+      }
+      var doc=new DOMParser().parseFromString(xml,"text/xml");
+      var items=Array.from(doc.querySelectorAll("item"));
+      if(!items.length&&xml.includes("message")){
+        if(i>=delays.length) throw new Error("BGG Timeout nach mehreren Versuchen.");
+        await new Promise(function(res){ setTimeout(res,delays[i]); });
+        continue;
+      }
+      return items;
+    }catch(e){
+      if(i>=delays.length) throw e;
+      await new Promise(function(res){ setTimeout(res,delays[i]); });
     }
-    var doc=new DOMParser().parseFromString(xml,"text/xml");
-    // BGG "please try again" message
-    var msg=doc.querySelector("message");
-    if(msg&&msg.textContent.toLowerCase().includes("try again")){
-      if(i>=delays.length) throw new Error("BGG antwortet nicht. Bitte manuell importieren.");
-      await new Promise(function(res){ setTimeout(res, delays[i]); });
-      continue;
-    }
-    var items=Array.from(doc.querySelectorAll("item"));
-    return items;
   }
   throw new Error("BGG Timeout.");
 }
