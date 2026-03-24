@@ -3590,11 +3590,17 @@ async function importFromBgg(){
       var players=minP&&maxP?minP.getAttribute("minplayers")+"-"+maxP.getAttribute("maxplayers")+" Spieler":"";
       return {bggId:id,name:name,year:year,image:image,players:players,bggUrl:"https://boardgamegeek.com/boardgame/"+id,isExpansion:isExpansion};
     });
-    sammlungData[currentName]=coll;
+    // Deduplicate by bggId (edge function merges two lists which can overlap)
+    var seen={};
+    var collDeduped=coll.filter(function(s){
+      if(!s.bggId||seen[s.bggId]) return false;
+      seen[s.bggId]=true; return true;
+    });
+    sammlungData[currentName]=collDeduped;
     await saveMySammlung();
     renderSammlung();
-    var expCount=coll.filter(function(s){ return s.isExpansion; }).length;
-    toast("✓ "+coll.length+" Spiele importiert · "+expCount+" Erweiterungen erkannt");
+    var expCount=collDeduped.filter(function(s){ return s.isExpansion; }).length;
+    toast("✓ "+collDeduped.length+" Spiele importiert · "+expCount+" Erweiterungen erkannt");
     if(lbl) lbl.textContent="↻ Sammlung aktualisieren";
   }catch(e){
     clearInterval(stepTimer);
