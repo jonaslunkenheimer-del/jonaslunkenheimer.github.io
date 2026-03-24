@@ -1728,14 +1728,34 @@ function refreshAllAvatars(){
 async function saveDisplayName(){
   var n=document.getElementById("profil-displayname").value.trim();
   if(!n) return;
+  var oldName=currentName;
   try{
     await fetch(SB_URL+"/auth/v1/user",{method:"PUT",headers:authHdrs(),body:JSON.stringify({data:{display_name:n}})});
+    // Store display_name in user_meta for name-map lookups
+    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({user_name:n,display_name:n})});
+    // Update all references in termine
+    if(oldName!==n){
+      var changed=false;
+      state.termine.forEach(function(t){
+        if(t.creator===oldName){ t.creator=n; changed=true; }
+        if(t.personen){
+          var idx=t.personen.indexOf(oldName);
+          if(idx>-1){ t.personen[idx]=n; changed=true; }
+        }
+        (t.chat||[]).forEach(function(m){ if(m.author===oldName){ m.author=n; changed=true; } });
+        (t.spiele||[]).forEach(function(s){ if(s.vorschlaeger===oldName){ s.vorschlaeger=n; changed=true; } });
+        if(t.subscribers){ t.subscribers.forEach(function(s){ if(s.name===oldName){ s.name=n; changed=true; } }); }
+      });
+      if(changed){ saveState(); }
+    }
     currentName=n;
     document.getElementById("hdr-name").textContent=n;
     setAv(document.getElementById("hdr-av"),n);
+    renderTermine();
     var msg=document.getElementById("profil-msg");
-    msg.textContent="\u2713 Name gespeichert"; msg.style.color="var(--green)"; msg.style.display="block";
-    setTimeout(function(){ msg.style.display="none"; },2000);
+    msg.textContent="\u2713 Name gespeichert"+(oldName!==n?" und in allen Terminen aktualisiert":"");
+    msg.style.color="var(--green)"; msg.style.display="block";
+    setTimeout(function(){ msg.style.display="none"; },3000);
   }catch(e){ toast("Fehler beim Speichern"); }
 }
 async function saveBggProfile(){
