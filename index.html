@@ -2580,7 +2580,7 @@ async function bggSearch(q){
   status.textContent="Suche\u2026";
   document.getElementById("as-drop").innerHTML=""; document.getElementById("as-drop").style.display="none";
   try{
-    var r=await fetch(SB_URL+"/functions/v1/bgg-proxy?action=search&q="+encodeURIComponent(q),{headers:authHdrs()});
+    var r=await fetch("https://bgg-proxy.jonas-lunkenheimer.workers.dev?action=search&q="+encodeURIComponent(q),{headers:authHdrs()});
     if(!r.ok) throw new Error(r.status);
     var xml=await r.text();
     var parser=new DOMParser();
@@ -2627,7 +2627,7 @@ function renderAsDrop(){
   drop.style.display="block";
 }
 function loadBggGameDetails(id){
-  return fetch(SB_URL+"/functions/v1/bgg-proxy?action=thing&id="+encodeURIComponent(id),{headers:authHdrs()}).then(function(r){
+  return fetch("https://bgg-proxy.jonas-lunkenheimer.workers.dev?action=thing&id="+encodeURIComponent(id),{headers:authHdrs()}).then(function(r){
     if(!r.ok) throw new Error(r.status);
     return r.text();
   }).then(function(xml){
@@ -3556,7 +3556,7 @@ async function saveMySammlung(){
 
 
 async function fetchBggCollection(bggUser){
-  var url=SB_URL+"/functions/v1/bgg-proxy?action=collection&username="+encodeURIComponent(bggUser);
+  var url="https://bgg-proxy.jonas-lunkenheimer.workers.dev?action=collection&username="+encodeURIComponent(bggUser);
   for(var i=0;i<10;i++){
     if(i>0) await new Promise(function(res){ setTimeout(res,4000); });
     try{
@@ -3800,7 +3800,7 @@ function onSammlungSearchKey(e){
 async function sammlungBggSearch(q){
   var status=document.getElementById("sammlung-search-status"); status.textContent="Suche…";
   try{
-    var r=await fetch(SB_URL+"/functions/v1/bgg-proxy?action=search&q="+encodeURIComponent(q),{headers:authHdrs()});
+    var r=await fetch("https://bgg-proxy.jonas-lunkenheimer.workers.dev?action=search&q="+encodeURIComponent(q),{headers:authHdrs()});
     if(!r.ok) throw new Error(r.status);
     var xml=await r.text();
     var doc=new DOMParser().parseFromString(xml,"text/xml");
