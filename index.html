@@ -371,6 +371,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
   /* ── Main ── */
   .main{padding:0 0 80px}
+  #tab-termine,#tab-kalender,#tab-zusagen,#tab-markt,#tab-sammlung{padding:12px 12px 0}
+  #tab-zusagen > div:first-child,#tab-markt > div:first-child,#tab-sammlung > div:first-child{padding:0;max-width:none}
   .tab-content.active{padding:0}
 
   /* ── Cards & sections ── */
@@ -383,10 +385,6 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   .chips-row{gap:4px}
   .chip{font-size:.68rem;padding:2px 7px}
   .persons-wrap{gap:5px}
-  /* All tabs: identical padding on mobile */
-  #tab-termine,#tab-kalender,#tab-zusagen,#tab-markt,#tab-sammlung{padding:8px 14px 0}
-  /* Reset the inner wrapper padding on mobile */
-  #tab-zusagen > div:first-child,#tab-markt > div:first-child,#tab-sammlung > div:first-child{padding:0;max-width:none}
 
   /* ── FAB: Neuer Termin ── */
   #fab-new-termin.fab-active{
