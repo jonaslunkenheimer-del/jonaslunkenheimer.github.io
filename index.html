@@ -1221,7 +1221,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:460px;animation:up .25s ease;overflow:hidden">
     <div style="background:linear-gradient(135deg,var(--blue),#6a9af8);padding:22px 24px 18px">
       <div style="font-size:1.4rem;margin-bottom:4px">🎉</div>
-      <div style="font-size:1.1rem;font-weight:800;color:#fff">Neuigkeiten seit deinem letzten Besuch</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#fff" id="whatsnew-title">Neuigkeiten seit deinem letzten Besuch</div>
     </div>
     <div id="whatsnew-body" style="padding:20px 24px;max-height:60vh;overflow-y:auto"></div>
     <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
@@ -1474,6 +1474,7 @@ async function startApp(name){
   renderTermine();
   var fab=document.getElementById("fab-new-termin"); if(fab) fab.classList.add("fab-active");
   startPolling();
+  startWhatsnewPolling();
   await loadNachrichten();
   updateNachrBadge();
   startNachrPolling();
@@ -1497,11 +1498,52 @@ async function switchUser(){
 var bggProfiles={}; // name -> bgg_username
 var _whatsnewHtml=""; // cached for re-open
 var _whatsnewCount=0;
+var _lastWhatsnewCheck=new Date(); // track when we last checked
 
-function reopenWhatsnew(){
-  if(!_whatsnewHtml){ toast("Keine Neuigkeiten vorhanden."); return; }
-  document.getElementById("whatsnew-body").innerHTML=_whatsnewHtml;
-  document.getElementById("whatsnew-modal").style.display="flex";
+async function reopenWhatsnew(){
+  // Always refresh when bell is clicked
+  await refreshWhatsnew();
+}
+
+async function refreshWhatsnew(){
+  await loadState();
+  await renderMarkt(false);
+  await showWhatsnew();
+}
+
+function startWhatsnewPolling(){
+  // Check every 90 minutes for new notifications
+  setInterval(async function(){
+    try{
+      await loadState();
+      await renderMarkt(false);
+      await showWhatsnewSilent();
+    }catch(e){}
+  }, 90*60*1000);
+}
+
+// Silent check — only updates badge, shows modal if new items found
+async function showWhatsnewSilent(){
+  var since=_lastWhatsnewCheck;
+  var nt=state.termine.filter(function(t){
+    if(!t.ts||new Date(t.ts)<=since||t.creator===currentName) return false;
+    if(t.privat&&!t.personen.includes(currentName)) return false;
+    return true;
+  });
+  var nm=mData.filter(function(m){ return m.ts&&new Date(m.ts)>since&&m.seller!==currentName; });
+  var activity=[];
+  state.termine.forEach(function(t){
+    if(!t.personen||!t.personen.includes(currentName)) return;
+    (t.chat||[]).forEach(function(m){
+      if(m.author!==currentName&&m.ts&&new Date(m.ts)>since){
+        activity.push({tid:t.id});
+      }
+    });
+  });
+  if(nt.length||nm.length||activity.length){
+    // New stuff found — show full whatsnew
+    await showWhatsnew();
+  }
 }
 
 function setNotifBadge(count){
@@ -1544,7 +1586,9 @@ async function getAndUpdateLogin(){
 
 async function showWhatsnew(){
   var last=await getAndUpdateLogin();
-  var since=last||new Date(0);
+  // Use the more recent of: last login OR last whatsnew check
+  var since=_lastWhatsnewCheck>new Date(last||0)?_lastWhatsnewCheck:(last||new Date(0));
+  _lastWhatsnewCheck=new Date(); // update check time
 
   // 0. Admin-Ankündigungen (angepinnte immer, andere nur wenn neu seit letztem Login)
   var announcements=await loadAnnouncements();
@@ -1670,6 +1714,8 @@ async function showWhatsnew(){
   }
 
   document.getElementById("whatsnew-body").innerHTML=html;
+  var titleEl=document.getElementById("whatsnew-title");
+  if(titleEl) titleEl.textContent="Neuigkeiten";
   document.getElementById("whatsnew-modal").style.display="flex";
   _whatsnewHtml=html;
   _whatsnewCount=nt.length+activity.length+nm.length+shownAnns.length;
