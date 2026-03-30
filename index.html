@@ -2332,7 +2332,7 @@ function toggleTermin(tid){
   var el=document.getElementById("termin-"+tid); if(!el) return;
   var wasOpen=el.classList.contains("open");
   el.classList.toggle("open");
-  if(!wasOpen) loadMemberPicker(tid);
+  if(!wasOpen) return; // picker loads on demand via toggleMemberPicker
 }
 function updateSpielSection(tid){
   var t=getT(tid); if(!t) return;
@@ -2542,9 +2542,9 @@ function buildTerminCard(t, open){
     picker="<div id='member-picker-"+t.id+"' style='background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden'>"
       +"<div onclick='toggleMemberPicker("+t.id+")' style='display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;user-select:none'>"
       +"<div style='font-size:.75rem;color:var(--text-3);font-weight:700'>&#128100; Mitglied hinzuf\u00fcgen</div>"
-      +"<span id='member-picker-arrow-"+t.id+"' style='font-size:.7rem;color:var(--text-3);transition:transform .2s;display:inline-block'>&#9650;</span>"
+      +"<span id='member-picker-arrow-"+t.id+"' style='font-size:.7rem;color:var(--text-3);transition:transform .2s;display:inline-block;transform:rotate(180deg)'>&#9650;</span>"
       +"</div>"
-      +"<div id='member-picker-body-"+t.id+"' style='padding:0 10px 10px'>"
+      +"<div id='member-picker-body-"+t.id+"' style='display:none;padding:0 10px 10px'>"
       +"<div id='member-list-"+t.id+"' style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:140px;overflow-y:auto'></div>"
       +"<div style='display:flex;gap:6px;margin-top:4px'>"
       +"<input class='input-field' id='pi-"+t.id+"' placeholder='Gast ohne Account ...' onkeydown='if(event.keyCode===13)addPerson("+t.id+")' style='flex:1;font-size:.82rem'>"
@@ -2781,6 +2781,7 @@ function toggleMemberPicker(tid){
   var isOpen=body.style.display!=="none";
   body.style.display=isOpen?"none":"block";
   if(arrow) arrow.style.transform=isOpen?"rotate(180deg)":"rotate(0deg)";
+  if(!isOpen) loadMemberPicker(tid); // load when opening
 }
 
 async function addSelf(tid){
@@ -2815,11 +2816,14 @@ async function loadMemberPicker(tid){
   var listEl=document.getElementById("member-list-"+tid); if(!listEl) return;
   var t=getT(tid); if(!t) return;
   listEl.innerHTML="<span style='font-size:.78rem;color:var(--text-3)'>Lade\u2026</span>";
+  // Always reload fresh to reflect deleted users
+  userCache=null;
   if(!userCache){
     try{
       // Try with display_name first, fall back to just user_name if column missing
-      var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,display_name&order=user_name",{headers:authHdrs()});
-      if(!r.ok) r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name&order=user_name",{headers:authHdrs()});
+      // Only load users who have logged in (last_login set = real active account)
+      var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,display_name,last_login&order=user_name&last_login=not.is.null",{headers:authHdrs()});
+      if(!r.ok) r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,display_name&order=user_name",{headers:authHdrs()});
       if(!r.ok) throw new Error("HTTP "+r.status);
       var rows=await r.json();
       var seen={};
