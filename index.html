@@ -892,7 +892,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
           <canvas id="avatar-crop-canvas" style="display:block;width:100%;cursor:move"></canvas>
           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160px;height:160px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.5);pointer-events:none"></div>
         </div>
-        <div id="avatar-crop-btns" style="display:none;display:flex;gap:6px">
+        <div id="avatar-crop-btns" style="display:none;gap:6px">
           <input type="range" id="avatar-zoom" min="0.2" max="3" step="0.01" value="1" style="flex:1;accent-color:var(--blue)" oninput="drawCrop()">
           <button class="btn btn-blue btn-sm" onclick="confirmAvatarCrop()">✓ Speichern</button>
           <button class="btn btn-ghost btn-sm" onclick="cancelAvatarCrop()">✕</button>
