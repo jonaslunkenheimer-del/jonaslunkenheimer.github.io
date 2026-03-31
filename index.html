@@ -569,6 +569,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
         <span style="font-size:.88rem;font-weight:600" id="hdr-name"></span>
       </div>
       <button id="hdr-admin-btn" onclick="openAdminModal()" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--text-2)">👑 Admin</button>
+      <button id="hdr-adminmode-btn" onclick="toggleAdminMode()" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--text-3)" title="Admin-Modus umschalten">👁 User-Ansicht</button>
     </div>
   </header>
 
@@ -1315,6 +1316,24 @@ var mChatId = null;
 var mImgs = [];
 var session = null;
 var isAdmin = false;
+var _isRealAdmin = false; // true when logged in as admin
+var adminMode = false;  // default: user view, must activate admin mode
+
+function toggleAdminMode(){
+  adminMode=!adminMode;
+  isAdmin=_isRealAdmin&&adminMode;
+  var btn=document.getElementById("hdr-adminmode-btn");
+  var adminBtn=document.getElementById("hdr-admin-btn");
+  if(btn){
+    btn.style.background=adminMode?"#fef3c7":"var(--surface2)";
+    btn.style.borderColor=adminMode?"#fde68a":"var(--border)";
+    btn.style.color=adminMode?"#d97706":"var(--text-3)";
+    btn.textContent=adminMode?"👑 Admin-Modus":"👁 Admin-Modus";
+  }
+  if(adminBtn) adminBtn.style.display=adminMode?"":"none";
+  renderTermine();
+  toast(adminMode?"👑 Admin-Modus aktiv":"👁 User-Ansicht aktiv");
+}
 var editTid = null;
 var addTid = null;
 var qrTid = null;
@@ -1465,8 +1484,12 @@ async function startApp(name){
   document.getElementById("hdr-name").textContent=name;
   document.getElementById("tab-btn-markt").style.display="";
   var ddMarkt=document.getElementById("tab-dd-markt"); if(ddMarkt) ddMarkt.style.display="";
+  _isRealAdmin=isAdmin;
+  isAdmin=false; // start in user view
   var adminBtn=document.getElementById("hdr-admin-btn");
-  if(adminBtn) adminBtn.style.display=isAdmin?"":"none";
+  var adminModeBtn=document.getElementById("hdr-adminmode-btn");
+  if(adminBtn) adminBtn.style.display="none";
+  if(adminModeBtn) adminModeBtn.style.display=_isRealAdmin?"":"none";
   try{ await loadState(); }catch(e){}
   await loadBggToken();
   await loadBggProfiles();
