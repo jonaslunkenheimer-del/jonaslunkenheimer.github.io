@@ -386,8 +386,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
   /* ── Main ── */
   .main{padding:0 0 80px}
-  #tab-termine,#tab-kalender,#tab-zusagen,#tab-markt,#tab-sammlung{padding:12px 12px 0}
-  #tab-zusagen > div:first-child,#tab-markt > div:first-child,#tab-sammlung > div:first-child{padding:0;max-width:none}
+  #tab-termine,#tab-kalender,#tab-zusagen,#tab-markt,#tab-sammlung,#tab-bgstats{padding:12px 12px 0}
+  #tab-zusagen > div:first-child,#tab-markt > div:first-child,#tab-sammlung > div:first-child,#tab-bgstats > div:first-child{padding:0;max-width:none}
   .tab-content.active{padding:0}
 
   /* ── Cards & sections ── */
@@ -673,7 +673,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
     <!-- BG STATS TAB -->
     <div id="tab-bgstats" class="tab-content">
-      <div style="max-width:860px;margin:0 auto">
+      <div style="max-width:860px;margin:0 auto;padding:0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
           <div>
             <div style="font-size:1.1rem;font-weight:800;margin-bottom:2px">📊 BG Stats</div>
@@ -4961,15 +4961,20 @@ async function renderBgstats(){
       receivedList.innerHTML="<div class='empty' style='padding:20px 0'><div class='empty-icon'>📭</div><p>Keine QR Codes für dich.</p></div>";
     } else {
       receivedList.innerHTML=myReceived.map(function(q){
-        var qrSrc="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data="+encodeURIComponent(q.url);
-        return "<div style='background:var(--surface);border:1.5px solid var(--blue);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px'>"
-          +"<img src='"+qrSrc+"' style='width:80px;height:80px;border-radius:8px;flex-shrink:0;background:#fff;border:1px solid var(--border);cursor:zoom-in' onclick='openLightbox(\""+qrSrc.replace("80x80","300x300")+"\")'>"
+        var qrSmall="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data="+encodeURIComponent(q.url);
+        var qrLarge="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data="+encodeURIComponent(q.url);
+        return "<div style='background:var(--surface);border:1.5px solid var(--blue);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px'>"
+          +"<div style='display:flex;align-items:center;gap:14px;margin-bottom:12px'>"
+          +"<img src='"+qrSmall+"' style='width:80px;height:80px;border-radius:8px;flex-shrink:0;background:#fff;border:1px solid var(--border);cursor:zoom-in' onclick='openLightbox(\""+qrLarge+"\")'>"
           +"<div style='flex:1;min-width:0'>"
           +"<div style='font-weight:700;font-size:.92rem;margin-bottom:3px'>"+h(q.title)+"</div>"
           +"<div style='font-size:.75rem;color:var(--text-3);margin-bottom:6px'>von <strong>"+h(q.author)+"</strong> &middot; "+new Date(q.ts).toLocaleDateString("de-DE")+"</div>"
           +"<a href='"+h(q.url)+"' target='_blank' style='font-size:.72rem;color:var(--blue);text-decoration:none;word-break:break-all'>"+h(q.url)+"</a>"
+          +"</div></div>"
+          +"<div style='display:flex;gap:8px'>"
+          +"<button onclick='openLightbox(\""+qrLarge+"\")' style='flex:1;background:#eff6ff;color:var(--blue);border:1px solid #bfdbfe;border-radius:8px;padding:8px;font-family:\"Outfit\",sans-serif;font-size:.82rem;font-weight:600;cursor:pointer'>🔍 QR Code vergrößern</button>"
+          +"<button onclick='markBgstatsScanned(\""+q.id+"\")' style='flex:1;background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd);border-radius:8px;padding:8px;font-family:\"Outfit\",sans-serif;font-size:.82rem;font-weight:600;cursor:pointer'>✓ Gescannt</button>"
           +"</div>"
-          +"<button onclick='markBgstatsScanned(\""+q.id+"\")' style='flex-shrink:0;background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd);border-radius:8px;padding:6px 10px;font-family:\"Outfit\",sans-serif;font-size:.78rem;font-weight:600;cursor:pointer'>✓ Gescannt</button>"
           +"</div>";
       }).join("");
     }
