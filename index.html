@@ -2267,6 +2267,7 @@ async function createTermin(){
     diceOn:document.getElementById("new-dice-on").checked===true,
     mitspielerGesucht:sucheOn,
     personen:[currentName], spiele:[], chat:[], qrcodes:[],
+    subscribers:(currentNotifEmail||window._hasPushSub)?[{name:currentName,email:currentNotifEmail||""}]:[],
     ts:new Date().toISOString()
   };
   state.termine.unshift(t);
@@ -2862,6 +2863,8 @@ async function removePerson(tid,name){
   var t=getT(tid); if(!t) return;
   if(!isAdmin&&name!==currentName){ toast("Du kannst nur dich selbst entfernen."); return; }
   t.personen=t.personen.filter(function(p){ return p!==name; });
+  // Abonnement entfernen wenn man den Termin verlässt
+  if(t.subscribers) t.subscribers=t.subscribers.filter(function(s){ return s.name!==name; });
   rerenderCard(tid); saveState();
 }
 function toggleManualInput(tid){
