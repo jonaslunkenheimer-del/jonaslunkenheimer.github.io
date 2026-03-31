@@ -981,6 +981,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
             </div>
             <label class="toggle-wrap"><input type="checkbox" id="profil-notif-markt"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
           </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px">
+            <div>
+              <div style="font-weight:600;font-size:.83rem">📊 BG Stats geteilt</div>
+              <div style="font-size:.68rem;color:var(--text-3)">Wenn jemand einen QR Code mit dir teilt</div>
+            </div>
+            <label class="toggle-wrap"><input type="checkbox" id="profil-notif-bgstats"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+          </div>
           <button class="btn btn-outline btn-sm" style="width:100%;margin-bottom:12px" onclick="saveNotifPrefs()">💾 Einstellungen speichern</button>
         </div>
         <!-- Push Notifications -->
@@ -1726,7 +1733,12 @@ async function showWhatsnew(){
   // 3. Neue Marktplatz-Angebote
   var nm=mData.filter(function(m){ return m.ts&&new Date(m.ts)>since&&m.seller!==currentName; });
 
-  if(!nt.length&&!activity.length&&!nm.length&&!shownAnns.length) return false;
+  // 4. Neue BG Stats QR Codes für mich
+  var nbg=bgstatsData.filter(function(q){
+    return q.author!==currentName&&(q.recipients||[]).includes(currentName)&&q.ts&&new Date(q.ts)>since;
+  });
+
+  if(!nt.length&&!activity.length&&!nm.length&&!shownAnns.length&&!nbg.length) return false;
 
   function sectionHeader(label){
     return "<div style='font-family:DM Mono,monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);font-weight:600;margin-bottom:10px'>"+label+"</div>";
@@ -1810,12 +1822,25 @@ async function showWhatsnew(){
     html+="</div>";
   }
 
+  if(nbg.length){
+    html+="<div style='margin-bottom:18px'>"+sectionHeader("Neue BG Stats QR Codes ("+nbg.length+")");
+    nbg.forEach(function(q){
+      html+=itemRow(
+        "closeWhatsnew();showTab(\"bgstats\",document.getElementById(\"tab-btn-bgstats\"))",
+        "<div style='width:40px;height:40px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0'>📊</div>",
+        h(q.title),
+        "von "+h(q.author)
+      );
+    });
+    html+="</div>";
+  }
+
   document.getElementById("whatsnew-body").innerHTML=html;
   var titleEl=document.getElementById("whatsnew-title");
   if(titleEl) titleEl.textContent="Neuigkeiten";
   document.getElementById("whatsnew-modal").style.display="flex";
   _whatsnewHtml=html;
-  _whatsnewCount=nt.length+activity.length+nm.length+shownAnns.length;
+  _whatsnewCount=nt.length+activity.length+nm.length+shownAnns.length+nbg.length;
   setNotifBadge(_whatsnewCount);
   return true;
 }
@@ -4762,13 +4787,13 @@ async function sendPushNotifications(title, body, url){
 }
 
 // ── E-Mail Benachrichtigungen ──
-var currentNotifEmail = "";       // loaded from user_meta
-var currentNotifPrefs = {termine:false,markt:false};
+var currentNotifEmail = "";
+var currentNotifPrefs = {termine:false,markt:false,bgstats:false};
 const SB_NOTIF_FN = SB_URL+"/functions/v1/send-notification";
 
 async function loadNotifPrefs(){
   try{
-    var r=await fetch(SB_URL+"/rest/v1/user_meta?user_name=eq."+encodeURIComponent(currentName)+"&select=notif_email,notif_all_termine,notif_all_markt",{headers:authHdrs()});
+    var r=await fetch(SB_URL+"/rest/v1/user_meta?user_name=eq."+encodeURIComponent(currentName)+"&select=notif_email,notif_all_termine,notif_all_markt,notif_all_bgstats",{headers:authHdrs()});
     if(!r.ok) return;
     var rows=await r.json();
     if(!rows.length) return;
@@ -4776,6 +4801,9 @@ async function loadNotifPrefs(){
     currentNotifEmail=row.notif_email||"";
     currentNotifPrefs.termine=!!row.notif_all_termine;
     currentNotifPrefs.markt=!!row.notif_all_markt;
+    currentNotifPrefs.bgstats=!!row.notif_all_bgstats;
+    // Sync UI
+    var nb=document.getElementById("profil-notif-bgstats"); if(nb) nb.checked=currentNotifPrefs.bgstats;
   }catch(e){}
 }
 
@@ -4796,9 +4824,11 @@ async function saveNotifPrefs(){
   try{
     var termine=document.getElementById("profil-notif-termine").checked;
     var markt=document.getElementById("profil-notif-markt").checked;
-    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({user_name:currentName,notif_all_termine:termine,notif_all_markt:markt})});
+    var bgstats=document.getElementById("profil-notif-bgstats")?document.getElementById("profil-notif-bgstats").checked:false;
+    await fetch(SB_URL+"/rest/v1/user_meta",{method:"POST",headers:Object.assign(authHdrs(),{"Prefer":"resolution=merge-duplicates"}),body:JSON.stringify({user_name:currentName,notif_all_termine:termine,notif_all_markt:markt,notif_all_bgstats:bgstats})});
     currentNotifPrefs.termine=termine;
     currentNotifPrefs.markt=markt;
+    currentNotifPrefs.bgstats=bgstats;
     var msg=document.getElementById("profil-msg");
     msg.textContent="✓ Benachrichtigungseinstellungen gespeichert";
     msg.style.color="var(--green)"; msg.style.display="block";
@@ -4993,6 +5023,30 @@ async function saveBgstatsQr(){
   closeBgstatsModal();
   renderBgstats();
   toast("📊 QR Code geteilt!");
+  // Notify recipients
+  sendBgstatsNotification(title, recipients);
+}
+
+async function sendBgstatsNotification(title, recipients){
+  try{
+    var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,notif_email,notif_all_bgstats,push_subscription",{headers:authHdrs()});
+    if(!r.ok) return;
+    var rows=await r.json();
+    var emails=[];
+    var pushSubs=[];
+    rows.forEach(function(row){
+      if(!recipients.includes(row.user_name)) return;
+      if(row.notif_all_bgstats&&row.notif_email) emails.push(row.notif_email);
+      if(row.push_subscription){ try{ pushSubs.push(JSON.parse(row.push_subscription)); }catch(e){} }
+    });
+    if(emails.length){
+      var bodyHtml="<div class='section'><h3>📊 "+h(title)+"</h3><p><strong>"+h(currentName)+"</strong> hat einen BG Stats QR Code mit dir geteilt.</p></div>";
+      await fetch(SB_NOTIF_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON},body:JSON.stringify({to:emails,subject:"📊 BG Stats geteilt: "+title,html:buildNotifEmail("BG Stats: "+title,bodyHtml)})});
+    }
+    if(pushSubs.length){
+      await fetch(SB_URL+"/functions/v1/send-push",{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON},body:JSON.stringify({subscriptions:pushSubs,title:"📊 BG Stats geteilt",body:h(currentName)+" hat \""+title+"\" mit dir geteilt",url:"/"})});
+    }
+  }catch(e){}
 }
 
 async function markBgstatsScanned(id){
