@@ -1060,7 +1060,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div style="padding:22px 24px">
       <div class="form-grid" style="margin-bottom:12px">
         <div class="form-field"><label>Titel</label><input class="input-field" id="edit-title"></div>
-        <div class="form-field"><label>Datum & Uhrzeit</label><input class="input-field" id="edit-date" type="datetime-local"></div>
+        <div class="form-field">
+          <label>Datum & Uhrzeit</label>
+          <div style="display:flex;gap:6px">
+            <input class="input-field" id="edit-date" type="datetime-local" style="flex:1">
+            <button type="button" onclick="document.getElementById('edit-date').value=''" class="btn btn-ghost btn-sm" title="Datum auf offen stellen" style="flex-shrink:0;white-space:nowrap">📅 Offen</button>
+          </div>
+        </div>
         <div class="form-field"><label>Ort</label><input class="input-field" id="edit-ort"></div>
         <div class="form-field"><label>Google Maps Link <span style="color:var(--text-3);font-weight:400">(optional)</span></label><input class="input-field" id="edit-maps" placeholder="https://maps.app.goo.gl/…"></div>
       </div>
