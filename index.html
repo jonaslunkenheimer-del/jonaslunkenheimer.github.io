@@ -657,11 +657,21 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
           </div>
         </div>
         <!-- Search/filter -->
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <input class="input-field" id="sammlung-search" placeholder="Sammlung durchsuchen …" oninput="filterSammlung()" style="flex:1">
-          <select class="input-field" id="sammlung-view-user" onchange="filterSammlung()" style="max-width:180px">
-            <option value="__all__">🌐 Alle Sammlungen</option>
-          </select>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <input class="input-field" id="sammlung-search" placeholder="Sammlung durchsuchen …" oninput="filterSammlung()" style="flex:1;min-width:140px">
+          <div style="position:relative" id="sammlung-user-picker-wrap">
+            <button onclick="toggleSammlungPicker()" id="sammlung-picker-btn" style="display:flex;align-items:center;gap:6px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:'Outfit',sans-serif;font-size:.85rem;cursor:pointer;color:var(--text-2);white-space:nowrap;min-width:160px;justify-content:space-between">
+              <span id="sammlung-picker-label">🌐 Alle Sammlungen</span>
+              <span style="font-size:.7rem;color:var(--text-3)">▾</span>
+            </button>
+            <div id="sammlung-picker-drop" style="display:none;position:absolute;top:calc(100% + 4px);right:0;min-width:220px;background:var(--surface);border:1.5px solid var(--blue);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:500;overflow:hidden">
+              <div style="padding:8px 10px;border-bottom:1px solid var(--border);display:flex;gap:6px">
+                <button onclick="sammlungPickAll()" class="btn btn-ghost btn-sm" style="flex:1;font-size:.72rem">Alle</button>
+                <button onclick="sammlungPickNone()" class="btn btn-ghost btn-sm" style="flex:1;font-size:.72rem">Keine</button>
+              </div>
+              <div id="sammlung-picker-list" style="max-height:240px;overflow-y:auto;padding:6px 8px"></div>
+            </div>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
           <div onclick="toggleSammlungErweiterungen()" style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;background:var(--surface);border:1.5px solid var(--border);border-radius:20px;font-size:.78rem;cursor:pointer;user-select:none;transition:all .15s" id="erweiterung-toggle">
@@ -4325,24 +4335,93 @@ async function importFromBggSilent(){
   }catch(e){}
 }
 
+var sammlungSelectedUsers = null; // null = all
+
+function toggleSammlungPicker(){
+  var drop=document.getElementById("sammlung-picker-drop");
+  if(!drop) return;
+  if(drop.style.display==="none"){
+    renderSammlungPickerList();
+    drop.style.display="block";
+    // Close on outside click
+    setTimeout(function(){
+      document.addEventListener("click",closeSammlungPickerOutside,{once:true});
+    },0);
+  } else {
+    drop.style.display="none";
+  }
+}
+
+function closeSammlungPickerOutside(e){
+  var wrap=document.getElementById("sammlung-user-picker-wrap");
+  if(wrap&&!wrap.contains(e.target)){
+    var drop=document.getElementById("sammlung-picker-drop");
+    if(drop) drop.style.display="none";
+  } else {
+    // Re-attach if click was inside
+    document.addEventListener("click",closeSammlungPickerOutside,{once:true});
+  }
+}
+
+function renderSammlungPickerList(){
+  var listEl=document.getElementById("sammlung-picker-list"); if(!listEl) return;
+  var users=Object.keys(sammlungData).filter(function(u){ return sammlungData[u]&&sammlungData[u].length; });
+  listEl.innerHTML=users.map(function(u){
+    var checked=sammlungSelectedUsers===null||sammlungSelectedUsers.includes(u);
+    var label=u===currentName?"Ich ("+h(u)+")":h(u);
+    return "<label style='display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:.83rem;transition:background .1s' onmouseover=\"this.style.background='var(--surface2)'\" onmouseout=\"this.style.background=''\">"
+      +"<input type='checkbox' "+(checked?"checked":"")+" style='accent-color:var(--blue);width:15px;height:15px;flex-shrink:0' onchange='onSammlungUserToggle(\""+h(u)+"\")'>"
+      +avHtml(u,"av-sm")
+      +"<span style='flex:1'>"+label+"</span>"
+      +"<span style='color:var(--text-3);font-size:.72rem'>"+sammlungData[u].length+"</span>"
+      +"</label>";
+  }).join("");
+}
+
+function onSammlungUserToggle(user){
+  var users=Object.keys(sammlungData).filter(function(u){ return sammlungData[u]&&sammlungData[u].length; });
+  // Init from "all" state
+  if(sammlungSelectedUsers===null) sammlungSelectedUsers=users.slice();
+  var idx=sammlungSelectedUsers.indexOf(user);
+  if(idx>-1) sammlungSelectedUsers.splice(idx,1);
+  else sammlungSelectedUsers.push(user);
+  // If all selected → back to null (all)
+  if(sammlungSelectedUsers.length===users.length) sammlungSelectedUsers=null;
+  updateSammlungPickerLabel();
+  filterSammlung();
+}
+
+function sammlungPickAll(){
+  sammlungSelectedUsers=null;
+  renderSammlungPickerList();
+  updateSammlungPickerLabel();
+  filterSammlung();
+}
+
+function sammlungPickNone(){
+  sammlungSelectedUsers=[];
+  renderSammlungPickerList();
+  updateSammlungPickerLabel();
+  filterSammlung();
+}
+
+function updateSammlungPickerLabel(){
+  var lbl=document.getElementById("sammlung-picker-label"); if(!lbl) return;
+  if(sammlungSelectedUsers===null){ lbl.textContent="🌐 Alle Sammlungen"; return; }
+  if(sammlungSelectedUsers.length===0){ lbl.textContent="— Niemand ausgewählt"; return; }
+  if(sammlungSelectedUsers.length===1){
+    lbl.textContent="👤 "+sammlungSelectedUsers[0];
+  } else {
+    lbl.textContent="👥 "+sammlungSelectedUsers.length+" User";
+  }
+}
+
 function renderSammlung(filterUser){
   var grid=document.getElementById("sammlung-grid"); if(!grid) return;
-  var viewUser=filterUser!==undefined?filterUser:(document.getElementById("sammlung-view-user")?document.getElementById("sammlung-view-user").value:"");
   var q=(document.getElementById("sammlung-search")?document.getElementById("sammlung-search").value:"").toLowerCase();
 
-  // Populate user selector
-  var sel=document.getElementById("sammlung-view-user");
-  if(sel){
-    var users=Object.keys(sammlungData).filter(function(u){ return sammlungData[u]&&sammlungData[u].length; });
-    var curVal=sel.value;
-    var myCount=(sammlungData[currentName]||[]).length;
-    var totalCount=users.reduce(function(s,u){ return s+sammlungData[u].length; },0);
-    sel.innerHTML="<option value='__all__' "+(curVal==='__all__'?"selected":"")+">🌐 Alle Sammlungen ("+totalCount+")</option>"
-      +"<option value='' "+(curVal===''?"selected":"")+">Meine Sammlung</option>"
-      +users.filter(function(u){ return u!==currentName; }).map(function(u){
-        return "<option value='"+h(u)+"'"+(u===curVal?" selected":"")+">"+(h(u))+"</option>";
-      }).join("");
-  }
+  // Populate picker if needed
+  updateSammlungPickerLabel();
 
   // Update import button label
   var lbl=document.getElementById("bgg-import-btn-lbl");
@@ -4350,93 +4429,72 @@ function renderSammlung(filterUser){
   var infoBar=document.getElementById("sammlung-bgg-info");
   var bggNameEl=document.getElementById("sammlung-bgg-name");
   var countEl=document.getElementById("sammlung-count-lbl");
-  if(infoBar&&(viewUser===''||viewUser===currentName)&&bggProfiles[currentName]){
+  if(infoBar&&bggProfiles[currentName]&&(sammlungSelectedUsers===null||(sammlungSelectedUsers.length===1&&sammlungSelectedUsers[0]===currentName))){
     infoBar.style.display="flex";
     if(bggNameEl) bggNameEl.textContent=bggProfiles[currentName];
     if(countEl) countEl.textContent=(sammlungData[currentName]||[]).length+" Spiele";
   } else if(infoBar){ infoBar.style.display="none"; }
 
-  // Build combined list for "Alle Sammlungen"
-  if(viewUser==="__all__"){
-    // Merge all collections, deduplicate by bggId, track owners
-    var merged={};
-    Object.keys(sammlungData).forEach(function(user){
-      (sammlungData[user]||[]).forEach(function(s){
-        var key=s.bggId||s.name;
-        if(!merged[key]){ merged[key]=Object.assign({},s,{owners:[],isExpansion:!!s.isExpansion}); }
-        else if(s.isExpansion) merged[key].isExpansion=true; // if any owner marks it as expansion, it is one
-        if(merged[key].owners.indexOf(user)===-1) merged[key].owners.push(user);
-      });
-    });
-    var coll=Object.values(merged);
-    if(!sammlungShowErweiterungen) coll=coll.filter(function(s){ return !s.isExpansion; });
-    if(q) coll=coll.filter(function(s){ return (s.name||"").toLowerCase().includes(q); });
-    coll.sort(function(a,b){ return (a.name||"").localeCompare((b.name||""),"de"); });
-    if(!coll.length){
-      grid.innerHTML="<div class='empty' style='grid-column:1/-1'><div class='empty-icon'>🎮</div><p>Keine Spiele gefunden.</p></div>";
-      return;
-    }
-    grid.innerHTML=coll.map(function(s){
-      var pr=s.image?proxyImg(s.image):null;
-      var imgHtml=pr
-        ? "<img class='sam-img' src='"+pr+"' alt='"+h(s.name)+"' onerror='this.style.display=\"none\";this.nextElementSibling.style.display=\"flex\"'><div class='sam-img-ph' style='display:none'>🎮</div>"
-        : "<div class='sam-img-ph'>🎮</div>";
-      var ownerChips=s.owners.map(function(p){
-        return "<span style='display:inline-flex;align-items:center;gap:3px;background:"+nameColor(p)+"22;border:1px solid "+nameColor(p)+"44;border-radius:10px;padding:1px 5px;font-size:.62rem;font-weight:600;color:var(--text-2)'>"
-          +"<div class='av av-sm' style='background:"+nameColor(p)+";width:12px;height:12px;font-size:.4rem'>"+nameInit(p)+"</div>"+h(p)+"</span>";
-      }).join("");
-      return "<div class='sam-card'>"
-        +imgHtml
-        +"<div class='sam-info'>"
-        +"<div class='sam-name' title='"+h(s.name)+"'>"+h(s.name)+"</div>"
-        +"<div class='sam-sub'>"+(s.year||"")+"</div>"
-        +"<div style='display:flex;flex-wrap:wrap;gap:2px;margin-top:4px'>"+ownerChips+"</div>"
-        +(s.bggUrl?"<a href='"+h(s.bggUrl)+"' target='_blank' style='font-size:.62rem;color:var(--blue);text-decoration:none'>BGG ↗</a>":"")
-        +"</div></div>";
-    }).join("");
-    return;
-  }
+  // Determine which users to show
+  var activeUsers=sammlungSelectedUsers===null
+    ? Object.keys(sammlungData).filter(function(u){ return sammlungData[u]&&sammlungData[u].length; })
+    : sammlungSelectedUsers.filter(function(u){ return sammlungData[u]&&sammlungData[u].length; });
 
-  // Single user view
-  var target=viewUser||currentName;
-  var coll=(sammlungData[target]||[]).slice();
+  var isSingleUser=activeUsers.length===1;
+  var target=isSingleUser?activeUsers[0]:null;
+
+  // Merge collections
+  var merged={};
+  activeUsers.forEach(function(user){
+    (sammlungData[user]||[]).forEach(function(s){
+      var key=s.bggId||s.name;
+      if(!merged[key]){ merged[key]=Object.assign({},s,{owners:[],isExpansion:!!s.isExpansion}); }
+      else if(s.isExpansion) merged[key].isExpansion=true;
+      if(merged[key].owners.indexOf(user)===-1) merged[key].owners.push(user);
+    });
+  });
+
+  var coll=Object.values(merged);
   if(!sammlungShowErweiterungen) coll=coll.filter(function(s){ return !s.isExpansion; });
   if(q) coll=coll.filter(function(s){ return (s.name||"").toLowerCase().includes(q); });
   coll.sort(function(a,b){ return (a.name||"").localeCompare((b.name||""),"de"); });
-  // Update count badge
+
   var badge=document.getElementById("sammlung-count-badge");
-  if(badge){
-    var allCnt=(sammlungData[target]||[]).length;
-    var expCnt=(sammlungData[target]||[]).filter(function(s){ return s.isExpansion; }).length;
-    badge.textContent=coll.length+" Spiele"+(expCnt?" · "+expCnt+" Erweiterungen":"");
-  }
+  if(badge) badge.textContent=coll.length+" Spiele";
 
   if(!coll.length){
-    var isMe=target===currentName;
-    grid.innerHTML="<div class='empty' style='grid-column:1/-1'><div class='empty-icon'>🎮</div><p>"+(isMe?"Noch keine Spiele. BGG importieren oder manuell hinzufügen!":"Keine Spiele in dieser Sammlung.")+"</p></div>";
+    var isEmpty=activeUsers.length===0;
+    grid.innerHTML="<div class='empty' style='grid-column:1/-1'><div class='empty-icon'>🎮</div><p>"+(isEmpty?"Keine User ausgewählt.":isSingleUser&&target===currentName?"Noch keine Spiele. BGG importieren oder manuell hinzufügen!":"Keine Spiele gefunden.")+"</p></div>";
     return;
   }
-  grid.innerHTML=coll.map(function(s,idx){
+
+  grid.innerHTML=coll.map(function(s){
     var pr=s.image?proxyImg(s.image):null;
     var imgHtml=pr
       ? "<img class='sam-img' src='"+pr+"' alt='"+h(s.name)+"' onerror='this.style.display=\"none\";this.nextElementSibling.style.display=\"flex\"'><div class='sam-img-ph' style='display:none'>🎮</div>"
       : "<div class='sam-img-ph'>🎮</div>";
-    var realIdx=(sammlungData[target]||[]).findIndex(function(x){ return (x.bggId&&x.bggId===s.bggId)||x.name===s.name; });
-    var delBtn=target===currentName
-      ? "<button class='sam-del' onclick='removeFromSammlung("+realIdx+")' title='Entfernen'>✕</button>" : "";
+    // Delete button only in single-user own view
+    var delBtn=(isSingleUser&&target===currentName)
+      ? (function(){ var realIdx=(sammlungData[currentName]||[]).findIndex(function(x){ return (x.bggId&&x.bggId===s.bggId)||x.name===s.name; }); return "<button class='sam-del' onclick='removeFromSammlung("+realIdx+")' title='Entfernen'>✕</button>"; })()
+      : "";
+    // Owner chips for multi-user view
+    var ownerChips=(!isSingleUser&&s.owners&&s.owners.length>1)
+      ? "<div style='display:flex;flex-wrap:wrap;gap:2px;margin-top:4px'>"+s.owners.map(function(p){
+          return "<span style='display:inline-flex;align-items:center;gap:3px;background:"+nameColor(p)+"22;border:1px solid "+nameColor(p)+"44;border-radius:10px;padding:1px 5px;font-size:.62rem;font-weight:600;color:var(--text-2)'>"+avHtml(p,"av-sm")+h(p)+"</span>";
+        }).join("")+"</div>" : "";
     return "<div class='sam-card'>"
       +imgHtml+delBtn
       +"<div class='sam-info'>"
       +"<div class='sam-name' title='"+h(s.name)+"'>"+h(s.name)+"</div>"
       +"<div class='sam-sub'>"+(s.year||"")+(s.year&&s.players?" · ":"")+(s.players||"")+"</div>"
+      +ownerChips
       +(s.bggUrl?"<a href='"+h(s.bggUrl)+"' target='_blank' style='font-size:.65rem;color:var(--blue);text-decoration:none'>BGG ↗</a>":"")
       +"</div></div>";
   }).join("");
 }
 
 function filterSammlung(){
-  var viewUser=document.getElementById("sammlung-view-user")?document.getElementById("sammlung-view-user").value:"";
-  renderSammlung(viewUser||currentName);
+  renderSammlung();
 }
 
 async function removeFromSammlung(idx){
