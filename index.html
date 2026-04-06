@@ -2148,6 +2148,19 @@ function startPolling(){
           if(!t.privat) return true; if(isAdmin) return true;
           return t.personen&&t.personen.includes(currentName);
         });
+        // Apply active filters (same logic as renderTermine)
+        vis=vis.filter(function(t){
+          if(activeTerminFilters.suche){
+            var sq=document.getElementById("termine-search-input");
+            var q=sq?sq.value.trim().toLowerCase():"";
+            if(q&&t.title.toLowerCase().indexOf(q)===-1) return false;
+            if(t.limitOn&&t.limitVal>0&&t.personen.length>=t.limitVal) return false;
+          }
+          if(activeTerminFilters.privat&&!t.privat) return false;
+          if(activeTerminFilters.zugesagt&&!t.personen.includes(currentName)) return false;
+          if(activeTerminFilters.offen&&t.date) return false;
+          return true;
+        });
         vis.sort(function(a,b){
           var da=a.date?new Date(a.date):new Date(8640000000000000);
           var db=b.date?new Date(b.date):new Date(8640000000000000);
