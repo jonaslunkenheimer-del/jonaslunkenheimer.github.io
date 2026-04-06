@@ -3665,14 +3665,18 @@ function addAllQueuedSlots(tid){
   if(!queue.length){ toast("Keine Termine in der Liste."); return; }
   if(!t.datePoll) t.datePoll={active:true,slots:[]};
   var added=0;
+  var addedLabels=[];
   queue.forEach(function(q){
     if(t.datePoll.slots.some(function(s){ return s.date===q.fullVal; })) return;
     t.datePoll.slots.push({id:"ds"+Date.now()+Math.random(),date:q.fullVal,hasTime:!!q.time,votes:{}});
+    addedLabels.push(q.label);
     added++;
   });
   dpollQueue[tid]=[];
   if(added===0){ toast("Alle Vorschläge bereits vorhanden."); return; }
-  rerenderCard(tid); saveState(); toast(added+" Vorschlag"+(added>1?"…schläge":"")+" hinzugefügt ✓");
+  rerenderCard(tid); saveState(); toast(added+" Vorschlag"+(added>1?"schläge":"")+" hinzugefügt ✓");
+  // E-Mail an alle Teilnehmer (außer dem der hinzugefügt hat)
+  if(!t.privat) sendDatePollNotif(t, addedLabels);
 }
 
 function addDateSlot(tid){
@@ -5436,6 +5440,28 @@ async function toggleTerminSubscribe(tid){
 // ── Notification Email Sending ──
 function buildNotifEmail(subject, bodyHtml){
   return "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:sans-serif;background:#f4f6fb;margin:0;padding:0}.wrap{max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.1)}.header{background:linear-gradient(135deg,#3b6ef5,#6a9af8);padding:24px;text-align:center;color:#fff}.header h1{margin:0;font-size:1.4rem}.logo{font-size:2rem;margin-bottom:8px}.body{padding:24px}.section{background:#f8f9fd;border-radius:8px;padding:14px 16px;margin-bottom:14px;border-left:4px solid #3b6ef5}.section h3{margin:0 0 6px;font-size:.95rem;color:#111827}.section p{margin:0;font-size:.85rem;color:#374151;line-height:1.5}.chip{display:inline-block;background:#eef2fe;color:#3b6ef5;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:600;margin:2px}.footer{padding:16px 24px;text-align:center;font-size:.75rem;color:#9ca3af;border-top:1px solid #e4e8f0}</style></head><body><div style='padding:20px'><div class='wrap'><div class='header'><div class='logo'>🎲</div><h1>Die Meeples</h1><div style='font-size:.85rem;opacity:.85'>Spieleabend Planer</div></div><div class='body'>"+bodyHtml+"</div><div class='footer'>Du erhältst diese E-Mail weil du Benachrichtigungen aktiviert hast. <br>Du kannst sie in deinem Profil deaktivieren.</div></div></div></body></html>";
+}
+
+async function sendDatePollNotif(t, addedLabels){
+  try{
+    // Fetch emails of all participants except the one who added
+    var recipients=t.personen.filter(function(p){ return p!==currentName; });
+    if(!recipients.length) return;
+    var r=await fetch(SB_URL+"/rest/v1/user_meta?select=user_name,notif_email&user_name=in.("+recipients.map(function(p){ return encodeURIComponent(p); }).join(",")+")&notif_email=not.is.null",{headers:authHdrs()});
+    if(!r.ok) return;
+    var rows=await r.json();
+    var emails=rows.filter(function(row){ return row.notif_email; }).map(function(row){ return row.notif_email; });
+    if(!emails.length) return;
+    var listHtml=addedLabels.map(function(l){ return "<li style='margin:4px 0'>📅 "+h(l)+"</li>"; }).join("");
+    var bodyHtml="<div class='section'><h3>📅 "+h(t.title)+"</h3>"
+      +(t.ort?"<p>📍 "+h(t.ort)+"</p>":"")
+      +"<p>👥 "+t.personen.length+" Teilnehmer</p></div>"
+      +"<div class='section'><h3>🗓 Neue Terminvorschläge zur Abstimmung</h3>"
+      +"<p><strong>"+h(currentName)+"</strong> hat "+addedLabels.length+" neuen Terminvorschlag"+(addedLabels.length>1?"schläge":"")+" hinzugefügt:</p>"
+      +"<ul style='margin:8px 0;padding-left:18px'>"+listHtml+"</ul>"
+      +"<p style='font-size:.85rem;color:#374151'>Öffne die App um abzustimmen.</p></div>";
+    await sendMail(emails,"📅 "+t.title+" – Neue Terminvorschläge",buildNotifEmail("Neue Terminvorschläge: "+t.title,bodyHtml));
+  }catch(e){}
 }
 
 async function sendNotifToSubscribers(t, eventType, extraInfo){
