@@ -1880,12 +1880,36 @@ async function showWhatsnew(){
   // 3. Neue Marktplatz-Angebote
   var nm=mData.filter(function(m){ return m.ts&&new Date(m.ts)>since&&m.seller!==currentName; });
 
+  // 3b. Neue Interessens-Meldungen auf eigene Inserate
+  var ninterest=[];
+  mData.forEach(function(m){
+    if(m.seller!==currentName) return;
+    // Einzel-Inserat
+    (m.interesse||[]).forEach(function(person){
+      if(!m.interesseTs||!m.interesseTs[person]) return;
+      if(new Date(m.interesseTs[person])>since){
+        ninterest.push({marktId:m.id,titel:m.titel,person:person,spiel:null,img:(m.images||[])[0]||null});
+      }
+    });
+    // Sammelanzeige pro Spiel
+    Object.entries(m.spieleInteresse||{}).forEach(function(entry){
+      var si=entry[0]; var persons=entry[1];
+      var spielName=(m.spiele&&m.spiele[si])?m.spiele[si].name:"Spiel";
+      persons.forEach(function(person){
+        if(!m.spieleInteresseTs||!m.spieleInteresseTs[si]||!m.spieleInteresseTs[si][person]) return;
+        if(new Date(m.spieleInteresseTs[si][person])>since){
+          ninterest.push({marktId:m.id,titel:m.titel,person:person,spiel:spielName,img:(m.images||[])[0]||null});
+        }
+      });
+    });
+  });
+
   // 4. Neue BG Stats QR Codes für mich
   var nbg=bgstatsData.filter(function(q){
     return q.author!==currentName&&(q.recipients||[]).includes(currentName)&&q.ts&&new Date(q.ts)>since;
   });
 
-  if(!nt.length&&!activity.length&&!nm.length&&!shownAnns.length&&!nbg.length) return false;
+  if(!nt.length&&!activity.length&&!nm.length&&!shownAnns.length&&!nbg.length&&!ninterest.length) return false;
 
   function sectionHeader(label){
     return "<div style='font-family:DM Mono,monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);font-weight:600;margin-bottom:10px'>"+label+"</div>";
@@ -1954,6 +1978,20 @@ async function showWhatsnew(){
     html+="</div>";
   }
 
+  if(ninterest.length){
+    html+="<div style='margin-bottom:18px'>"+sectionHeader("Neues Interesse an deinen Inseraten ("+ninterest.length+")");
+    ninterest.forEach(function(ni){
+      html+=itemRow(
+        "closeWhatsnew();showTab(\"markt\",document.getElementById(\"tab-btn-markt\"))",
+        ni.img?"<img src='"+h(ni.img)+"' style='width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0' onerror='this.style.display=\"none\"'>"
+              :"<div style='width:40px;height:40px;border-radius:8px;background:#fff7ed;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0'>👋</div>",
+        h(ni.person)+" interessiert sich"+(ni.spiel?" für <strong>"+h(ni.spiel)+"</strong>":""),
+        h(ni.titel)
+      );
+    });
+    html+="</div>";
+  }
+
   if(nm.length){
     html+="<div>"+sectionHeader("Neue Marktplatz-Angebote ("+nm.length+")");
     nm.forEach(function(m){
@@ -1987,7 +2025,7 @@ async function showWhatsnew(){
   if(titleEl) titleEl.textContent="Neuigkeiten";
   document.getElementById("whatsnew-modal").style.display="flex";
   _whatsnewHtml=html;
-  _whatsnewCount=nt.length+activity.length+nm.length+shownAnns.length+nbg.length;
+  _whatsnewCount=nt.length+activity.length+nm.length+shownAnns.length+nbg.length+ninterest.length;
   setNotifBadge(_whatsnewCount);
   return true;
 }
@@ -3994,7 +4032,15 @@ async function toggleSpielInteresse(id, spielIdx){
   if(!m.spieleInteresse[spielIdx]) m.spieleInteresse[spielIdx]=[];
   var arr=m.spieleInteresse[spielIdx];
   var i=arr.indexOf(currentName);
-  if(i>-1) arr.splice(i,1); else arr.push(currentName);
+  if(i>-1){
+    arr.splice(i,1);
+    if(m.spieleInteresseTs&&m.spieleInteresseTs[spielIdx]) delete m.spieleInteresseTs[spielIdx][currentName];
+  } else {
+    arr.push(currentName);
+    if(!m.spieleInteresseTs) m.spieleInteresseTs={};
+    if(!m.spieleInteresseTs[spielIdx]) m.spieleInteresseTs[spielIdx]={};
+    m.spieleInteresseTs[spielIdx][currentName]=new Date().toISOString();
+  }
   renderMarkt(false); await saveMarkt();
 }
 
@@ -4019,8 +4065,14 @@ async function markSpielSold(id, spielIdx){
 async function toggleInteresse(id){
   var m=mData.find(function(x){ return x.id===id; }); if(!m) return;
   if(!m.interesse) m.interesse=[];
-  if(m.interesse.includes(currentName)) m.interesse=m.interesse.filter(function(n){ return n!==currentName; });
-  else m.interesse.push(currentName);
+  if(m.interesse.includes(currentName)){
+    m.interesse=m.interesse.filter(function(n){ return n!==currentName; });
+    if(m.interesseTs) delete m.interesseTs[currentName];
+  } else {
+    m.interesse.push(currentName);
+    if(!m.interesseTs) m.interesseTs={};
+    m.interesseTs[currentName]=new Date().toISOString();
+  }
   renderMarkt(false); await saveMarkt();
 }
 async function markSold(id){
