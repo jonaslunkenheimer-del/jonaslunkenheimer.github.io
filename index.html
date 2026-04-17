@@ -376,11 +376,15 @@ header{background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px
   #fab-new-termin:active{transform:scale(.93)}
   #btn-new-termin-inline{display:none !important}
   #new-termin-modal,#edit-modal,#add-modal,#profil-modal,#inserat-modal,#admin-modal,#qr-modal,#confirm-modal,#markt-chat-modal,#add-sammlung-modal,#whatsnew-modal{padding:0 !important;align-items:flex-end !important}
-  #markt-chat-modal > div{max-height:85vh !important}
+  #markt-chat-modal > div{max-height:85vh !important;max-height:85dvh !important}
   #markt-chat-modal > div,#markt-chat-box{border-radius:24px 24px 0 0 !important}
-  #new-termin-modal > div,#edit-modal > div,#add-modal > div,#profil-modal > div,#inserat-modal > div,#admin-modal > div,#qr-modal > div,#confirm-modal > div,#markt-chat-modal > div,#add-sammlung-modal > div,#whatsnew-modal > div{max-width:100% !important;width:100% !important;border-radius:24px 24px 0 0 !important;max-height:92vh !important;overflow-y:auto !important;animation:slide-up .25s ease !important}
+  #new-termin-modal > div,#edit-modal > div,#add-modal > div,#profil-modal > div,#inserat-modal > div,#admin-modal > div,#qr-modal > div,#confirm-modal > div,#markt-chat-modal > div,#add-sammlung-modal > div,#whatsnew-modal > div{max-width:100% !important;width:100% !important;border-radius:24px 24px 0 0 !important;max-height:92vh !important;max-height:92dvh !important;overflow-y:auto !important;animation:slide-up .25s ease !important}
+  /* Profile modal: keep inner flex layout so its dedicated scroll body handles scrolling.
+     Otherwise Chrome mobile cuts off the top (Abmelden/X buttons) and blocks scrolling. */
+  #profil-modal > div{display:flex !important;flex-direction:column !important;overflow:hidden !important}
+  #profil-modal #profil-scroll-body{flex:1 1 auto !important;min-height:0 !important;height:auto !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch !important}
   #new-termin-modal > div > div:first-child,#edit-modal > div > div:first-child,#inserat-modal > div > div:first-child{position:sticky;top:0;z-index:10}
-  #new-termin-modal .modal-scroll-body{max-height:calc(92vh - 80px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #new-termin-modal .modal-scroll-body{max-height:calc(92vh - 80px);max-height:calc(92dvh - 80px);overflow-y:auto;-webkit-overflow-scrolling:touch}
   .form-grid{grid-template-columns:1fr}
   #new-termin-modal .form-grid,#edit-modal .form-grid{margin-bottom:10px}
   .cal-day{min-height:36px;padding:3px 2px}
@@ -829,7 +833,7 @@ header{background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px
 
 <!-- PROFIL MODAL -->
 <div id="profil-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;align-items:center;justify-content:center;padding:16px">
-  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column;animation:up .2s ease;overflow:hidden">
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:420px;max-height:90vh;max-height:90dvh;display:flex;flex-direction:column;animation:up .2s ease;overflow:hidden">
     <!-- Sticky header -->
     <div id="profil-header-wrap" style="background:linear-gradient(135deg,var(--blue),#6a9af8);padding:20px 24px;text-align:center;flex-shrink:0;position:relative">
       <button onclick="closeProfileModal()" style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center" title="Schließen">✕</button>
