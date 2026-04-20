@@ -3132,6 +3132,8 @@ function updateJoinBtn(tid){
 function buildTerminCard(t, open){
   var canManage=isAdmin||t.creator===currentName;
   var alreadyIn=currentName&&t.personen.includes(currentName);
+  var isMember=t.personen.includes(currentName)||isAdmin;
+  var isParticipant=isMember;
   var isFull=t.limitOn&&t.limitVal>0&&t.personen.length>=t.limitVal;
   var suchActive=t.mitspielerGesucht&&!isFull;
   var freePlätze=suchActive&&t.limitVal>0?(t.limitVal-t.personen.length):0;
