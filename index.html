@@ -181,6 +181,10 @@ header{background:rgba(242,242,247,.92);backdrop-filter:saturate(180%) blur(20px
 .msg-row.mine .bubble-name{color:rgba(255,255,255,.8)}
 .bubble-time{font-size:.6rem;color:var(--text-3);margin-top:3px}
 .msg-row.mine .bubble-time{color:rgba(255,255,255,.7)}
+.msg-del{opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-3);padding:2px 5px;border-radius:6px;flex-shrink:0;align-self:center;line-height:1}
+.msg-del:hover{background:var(--surface2);color:var(--red)}
+.msg-row:hover .msg-del{opacity:1}
+@media(hover:none){.msg-del{opacity:.35}}
 .chat-input-row{display:flex;gap:8px;align-items:center}
 .chat-input{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:22px;font-family:inherit;font-size:.85rem;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s}
 .chat-input:focus{border-color:var(--blue)}
@@ -5092,16 +5096,33 @@ function renderKonvChat(partner,subject){
       lastDate=msgDate;
       dateStamp="<div style='text-align:center;margin:8px 0'><span style='font-size:.65rem;color:var(--text-3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-weight:600'>"+fmtDateStamp(m.ts)+"</span></div>";
     }
+    var canDel=mine||isAdmin;
+    var delBtn=canDel?"<button class='msg-del' onclick='deleteNachrMsg(\""+m.id+"\")' title='Nachricht löschen'>🗑</button>":"";
     return dateStamp+"<div class='msg-row"+(mine?" mine":"")+"'>"
+      +(mine?delBtn:"")
       +"<div class='av av-sm' style='background:"+nameColor(m.from)+";display:"+(mine?"none":"flex")+";align-items:center;justify-content:center'>"+nameInit(m.from)+"</div>"
       +"<div class='bubble'>"
       +(!mine?"<div class='bubble-name'>"+h(m.from)+"</div>":"")
       +(m.img?"<img src='"+m.img+"' onclick='openLightbox(this.src)' style='max-width:200px;max-height:180px;border-radius:10px;display:block;cursor:zoom-in;object-fit:cover"+(m.body?";margin-bottom:6px":"")+";border:1px solid rgba(0,0,0,.08)'>":"")
       +(m.body?"<div style='white-space:pre-wrap;word-break:break-word'>"+h(m.body)+"</div>":"")
       +"<div class='bubble-time'>"+fmtTime(m.ts)+"</div>"
-      +"</div></div>";
+      +"</div>"
+      +(!mine?delBtn:"")
+      +"</div>";
   }).join("");
   box.scrollTop=box.scrollHeight;
+}
+
+async function deleteNachrMsg(msgId){
+  var msg=nachrData.find(function(m){ return m.id===msgId; });
+  if(!msg) return;
+  if(msg.from!==currentName&&!isAdmin) return;
+  nachrSaveLock=true;
+  nachrData=nachrData.filter(function(m){ return m.id!==msgId; });
+  renderKonvChat(konvPartner,konvSubject);
+  renderConvList();
+  updateNachrBadge();
+  await saveNachrichten();
 }
 
 // ── Compose panel ──
